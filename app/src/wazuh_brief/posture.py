@@ -250,6 +250,7 @@ def _input_file(entry: FIMEntry) -> InputFile:
         owner=entry.uname,
         changes=entry.changes,
         mtime=entry.mtime,
+        likely_symlink=entry.perm == "rwxrwxrwx",
     )
 
 

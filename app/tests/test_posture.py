@@ -86,3 +86,13 @@ def test_loopback_is_not_exposed():
 
     assert not is_exposed(InputPort(protocol="tcp", address="127.0.0.1", port=5432, process=None))
     assert is_exposed(InputPort(protocol="tcp6", address="::", port=22, process=None))
+
+
+async def test_symlink_like_fim_entries_are_marked(client, wazuh_mock):
+    route_lab_agent_001(wazuh_mock)
+
+    payload = build_input(await collect_posture(client, "001"))
+
+    links = {f.file for f in payload.fim_recent if f.likely_symlink}
+    assert "/etc/systemd/system/multi-user.target.wants/wazuh-agent.service" in links
+    assert "/etc/passwd" not in links

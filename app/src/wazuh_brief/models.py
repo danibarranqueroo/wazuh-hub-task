@@ -225,6 +225,9 @@ class InputFile(BaseModel):
     owner: str | None
     changes: int
     mtime: str | None
+    # Wazuh reports symlinks as perm 'rwxrwxrwx' with type 'file'; such entries are not
+    # world-writable files.
+    likely_symlink: bool = False
 
 
 class InputPort(BaseModel):

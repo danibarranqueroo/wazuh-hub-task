@@ -299,6 +299,8 @@ Rules:
 - Return at most 5 fixes, most important first. Rank by real-world risk: remote exposure and \
 authentication weaknesses first, then privilege escalation and loss of audit trail, then local \
 hygiene. Group closely related checks into one fix when one change resolves them.
+- FIM entries with likely_symlink true are symbolic links (Wazuh shows links as rwxrwxrwx). Do not \
+report them as world-writable files.
 - Use only facts from the input. Every fix must cite its evidence (check IDs, file paths, ports).
 - "remediation" must be concrete: the file to edit, the setting, or the command.
 - If sca_applicable is false, say plainly that CIS hardening is not assessed on this host, \

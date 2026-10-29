@@ -199,7 +199,7 @@ None of this was exercised against the real API: no `ANTHROPIC_API_KEY` was set 
 
 ### FIM quirk: symlinks look world-writable
 
-The lab FIM data reports `/etc/systemd/system/multi-user.target.wants/wazuh-agent.service` with `perm: rwxrwxrwx`. It is a symlink (43 bytes, empty-file hashes) reported with `type: file`. The world-writable rule ignores the exact value `rwxrwxrwx` to avoid flagging every systemd link.
+The lab FIM data reports `/etc/systemd/system/multi-user.target.wants/wazuh-agent.service` with `perm: rwxrwxrwx`. It is a symlink (43 bytes, empty-file hashes) reported with `type: file`. The world-writable rule ignores the exact value `rwxrwxrwx` to avoid flagging every systemd link. Later (Entry 4), the first real model brief ranked `/usr/bin/sh` (a link to `bash`, shown as `rwxrwxrwx`) as a world-writable shell. The summarizer input now carries `likely_symlink: true` for such entries, and the system prompt says not to report them as world-writable.
 
 ## 2026-10-29 — Entry 4: follow-up, a dev-only path to real model output
 
