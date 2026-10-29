@@ -1,0 +1,106 @@
+{
+    "agent": {
+        "id": "000",
+        "name": "wazuh.manager",
+        "status": "active",
+        "os": "Amazon Linux 2023",
+        "ip": "127.0.0.1",
+        "wazuh_version": "Wazuh v4.14.9"
+    },
+    "generated_at": "2026-10-29T12:35:39.058834Z",
+    "source": "mock",
+    "model": null,
+    "fallback_reason": "LLM_PROVIDER is mock",
+    "stale": false,
+    "summary": "wazuh.manager (Amazon Linux 2023) fails 46 SCA checks in cis_amazon_linux_2023 (score 52%). These 5 fixes come first, ranked by remote exposure, authentication and privilege impact. Start with: Ensure accounts in /etc/passwd use shadowed passwords.",
+    "fixes": [
+        {
+            "rank": 1,
+            "title": "Ensure accounts in /etc/passwd use shadowed passwords",
+            "category": "sca",
+            "why": "The /etc/passwd file also contains information like user ID's and group ID's that are used by many system programs. Therefore, the /etc/passwd file must remain world readable. In spite of encoding the password with a randomly-generated one-way hash function, an attacker could still break the system if they got access to the /etc/passwd file. This can be mitigated by using shadowed passwords, thus moving the passwords in the /etc/passwd file to /etc/shadow. The /etc/shadow file is set so only ro\u2026",
+            "remediation": "Run the following command to set accounts to use shadowed passwords: # sed -e 's/^\\([a-zA-Z0-9_]*\\):[^:]*:/\\1:x:/' -i /etc/passwd Investigate to determine if the account is logged in and what it is being used for, to determine if it needs to be forced off.",
+            "evidence": [
+                "SCA check 31181 failed in policy cis_amazon_linux_2023"
+            ],
+            "references": [
+                "CIS 6.2.1",
+                "MITRE T1003",
+                "MITRE T1003.008"
+            ]
+        },
+        {
+            "rank": 2,
+            "title": "Ensure nftables default deny firewall policy",
+            "category": "sca",
+            "why": "There are two policies: accept (Default) and drop. If the policy is set to accept, the firewall will accept any packet that is not configured to be denied and the packet will continue traversing the network stack. It is easier to explicitly permit acceptable usage than to deny unacceptable usage. Note: Changing firewall settings while connected over the network can result in being locked out of the system.",
+            "remediation": "If NFTables utility is in use on your system: Run the following command for the base chains with the input, forward, and output hooks to implement a default DROP policy: # nft chain <table family> <table name> <chain name> { policy drop \\; } Example: # nft chain inet filter input { policy drop \\; } # nft chain inet filter forward { policy drop \\; }.",
+            "evidence": [
+                "SCA check 31082 failed in policy cis_amazon_linux_2023"
+            ],
+            "references": [
+                "CIS 3.4.2.9"
+            ]
+        },
+        {
+            "rank": 3,
+            "title": "Ensure permissions on /etc/ssh/sshd_config are configured",
+            "category": "sca",
+            "why": "The /etc/ssh/sshd_config file needs to be protected from unauthorized changes by non-privileged users.",
+            "remediation": "Run the following commands to set ownership and permissions on /etc/ssh/sshd_config: # chown root:root /etc/ssh/sshd_config # chmod og-rwx /etc/ssh/sshd_config.",
+            "evidence": [
+                "SCA check 31135 failed in policy cis_amazon_linux_2023"
+            ],
+            "references": [
+                "CIS 5.2.1",
+                "MITRE T1098",
+                "MITRE T1098.004",
+                "MITRE T1543",
+                "MITRE T1543.002"
+            ]
+        },
+        {
+            "rank": 4,
+            "title": "Ensure nftables is installed",
+            "category": "sca",
+            "why": "nftables is a subsystem of the Linux kernel that can protect against threats originating from within a corporate network to include malicious mobile code and poorly configured software on a host.",
+            "remediation": "Run the following command to install nftables # dnf install nftables.",
+            "evidence": [
+                "SCA check 31079 failed in policy cis_amazon_linux_2023"
+            ],
+            "references": [
+                "CIS 3.4.1.1",
+                "MITRE T1562",
+                "MITRE T1562.004"
+            ]
+        },
+        {
+            "rank": 5,
+            "title": "Ensure auditd is installed",
+            "category": "sca",
+            "why": "The capturing of system events provides system administrators with information to allow them to determine if unauthorized access to their system is occurring.",
+            "remediation": "Run the following command to Install auditd # dnf install audit.",
+            "evidence": [
+                "SCA check 31083 failed in policy cis_amazon_linux_2023"
+            ],
+            "references": [
+                "CIS 4.1.1.1",
+                "MITRE T1562",
+                "MITRE T1562.001"
+            ]
+        }
+    ],
+    "coverage": {
+        "confidence": "high",
+        "note": "File integrity data is a baseline only: none of the most recently modified files has changed since FIM first indexed it. Alerts and vulnerability detection are not included: the service reads the server API only, not the indexer.",
+        "sca_policies": 1,
+        "sca_failed_checks_total": 46,
+        "sca_failed_checks_considered": 46,
+        "fim_entries_considered": 20,
+        "listening_ports_considered": 5,
+        "gaps": [
+            "File integrity data is a baseline only: none of the most recently modified files has changed since FIM first indexed it.",
+            "Alerts and vulnerability detection are not included: the service reads the server API only, not the indexer."
+        ]
+    }
+}
