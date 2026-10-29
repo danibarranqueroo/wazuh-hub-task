@@ -1,0 +1,25 @@
+{
+    "data": {
+        "affected_items": [
+            {
+                "description": "This document provides prescriptive guidance for establishing a secure configuration posture for Ubuntu Linux 24.04 LTS.",
+                "fail": 87,
+                "start_scan": "2026-10-29T12:05:02+00:00",
+                "references": "https://www.cisecurity.org/cis-benchmarks/",
+                "name": "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0",
+                "pass": 56,
+                "score": 39,
+                "end_scan": "2026-10-29T12:05:09+00:00",
+                "policy_id": "cis_ubuntu24-04",
+                "total_checks": 191,
+                "hash_file": "fb41fe9660f4320aaed0c3c292c8602953df7f8c42b37b724855f9005c43fafc",
+                "invalid": 48
+            }
+        ],
+        "total_affected_items": 1,
+        "total_failed_items": 0,
+        "failed_items": []
+    },
+    "message": "All selected SCA information was returned",
+    "error": 0
+}

@@ -1,0 +1,18 @@
+{
+    "data": {
+        "wmodules": [
+            {
+                "sca": {
+                    "interval": 43200,
+                    "enabled": "yes",
+                    "scan_on_start": "yes",
+                    "skip_nfs": "yes",
+                    "policies": [
+                        "/var/ossec/ruleset/sca/cis_ubuntu22-04.yml"
+                    ]
+                }
+            }
+        ]
+    },
+    "error": 0
+}
