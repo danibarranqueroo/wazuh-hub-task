@@ -200,3 +200,43 @@ None of this was exercised against the real API: no `ANTHROPIC_API_KEY` was set 
 ### FIM quirk: symlinks look world-writable
 
 The lab FIM data reports `/etc/systemd/system/multi-user.target.wants/wazuh-agent.service` with `perm: rwxrwxrwx`. It is a symlink (43 bytes, empty-file hashes) reported with `type: file`. The world-writable rule ignores the exact value `rwxrwxrwx` to avoid flagging every systemd link.
+
+## 2026-10-29 — Entry 4: follow-up, a dev-only path to real model output
+
+After the first report, Dani answered the open questions and asked for one more piece of work, through the main session. The answers: keep the password redacted in this log; keep `/agents/000/brief` and `include_manager`; keep `claude-sonnet-5-5` as the API default; keep the stale cache for "unreachable" only, with a 502 on auth errors.
+
+The new work: Dani has no API budget, so every brief so far came from the mock. The follow-up adds a summarizer that runs the same prompt through the Claude Agent SDK on his own Claude Code login, for development only. This is the message the subagent received, unchanged:
+
+<details>
+<summary>Follow-up prompt for the subagent</summary>
+
+````text
+Follow-up from the main session. Dani approved this; same worktree (/Users/dani/Desktop/projects/wazuh-hub-task-phase2), same branch, same hard rules, commit conventions (signed, small, Co-Authored-By line), no push.
+
+Decisions on your open questions: (1) keep the password redacted in the agent log; (2) keep /agents/000/brief and include_manager as they are; (3) claude-sonnet-5-5 stays as the API default; (4) stale cache only on unreachable, 502 on auth: keep.
+
+New work: Dani has no API budget. Add a DEV-ONLY summarizer that runs the same prompt through the Claude Agent SDK using his local Claude Code login (no API key).
+- Package: `claude-agent-sdk` (Python). Read its current docs first (https://code.claude.com/docs/en/agent-sdk/python and the quickstart) for the exact API; do not guess signatures.
+- `ClaudeCodeSummarizer` in llm.py (or a sibling module): same system prompt, same input payload and same output schema as `ClaudeSummarizer`; no tools allowed (empty allowed tools / tools disabled), single turn, no access to the filesystem or project settings beyond what the SDK requires; parse and validate the JSON result with the existing pydantic models. Response `source: "claude-code"`.
+- Selection: new setting `LLM_PROVIDER` = `auto` (default) | `anthropic` | `claude-code` | `mock`. `auto` keeps today's behaviour (API key -> anthropic, else mock). `claude-code` is opt-in only, never chosen automatically. Any failure (SDK not installed, CLI not found, not logged in, timeout, invalid JSON) falls back to the mock with a clear `fallback_reason`. Put the SDK in an optional dependency group/extra if that keeps the default install light; your call, document it.
+- Tests with a fake SDK client: happy path, invalid JSON -> mock, SDK error -> mock, provider selection matrix. CI must not need a login or key.
+- Docs: `.env.example`, README quickstart (how to try the dev path), CLAUDE.md module map, a new ADR `0002-dev-only-agent-sdk-summarizer.md` (context: no API budget; decision: dev-only adapter on the developer's own login; consequences: never shipped, production uses API key; quote the Agent SDK docs note: "Unless previously approved, Anthropic does not allow third party developers to offer claude.ai login or rate limits for their products, including agents built on the Claude Agent SDK."), and an agent-log entry with this message verbatim in a <details> block.
+- Live check: run the server with `LLM_PROVIDER=claude-code` against the lab and call `/agents/001/brief` and `/agents/000/brief` once each. Save one real response (trimmed, no tokens/secrets) as `docs/examples/brief-000-claude-code.json` and the mock version of the same agent as `docs/examples/brief-000-mock.json` so reviewers can compare. Keep live calls to those two plus at most one retry. If the Claude Code CLI is not reachable from your shell (PATH: try `which claude`, and `$HOME/.local/bin`, mise shims), report it instead of working around auth.
+- Then: ruff check, ruff format --check, pytest all green, git status clean.
+
+Report back briefly: commits, test count, live result (source + first two fixes for 000), and anything unverified.
+````
+
+</details>
+
+Decisions the subagent made while doing it:
+
+| Question | Decision | Why |
+|---|---|---|
+| Where the code goes | A sibling module, `llm_claude_code.py`, imported only when `LLM_PROVIDER=claude-code` | Keeps `llm.py` free of the SDK, and an install without the extra never imports it |
+| Packaging | Optional extra `claude-code` | The SDK wheel bundles the Claude Code CLI, about 260 MB. CI and the default install skip it. |
+| "No tools" | `tools=[]`, which the SDK turns into `--tools ""` (checked in the SDK source), plus `allowed_tools=[]` | Removes every built-in tool from the model's context, not only from auto-approval |
+| "No settings" | `setting_sources=[]`, `--strict-mcp-config`, `--disable-slash-commands`, `--no-session-persistence`, and an empty temporary `cwd` | No `CLAUDE.md`, no user MCP servers, no skills, and nothing written to the session history |
+| Structured output | Schema in the system prompt and pydantic validation, not the SDK's `output_format` | The docs say `output_format` adds a `StructuredOutput` tool call. That needs a tool and a second turn, and the brief asked for neither. |
+| Timeout | At least 120 s on this path | It starts a CLI process per call, so the API path's 45 s is too tight |
+| Fallback reason | Prefixed with the summarizer that failed (`claude-code: ...`, `claude: ...`) | With two model paths, the reason has to say which one failed |
