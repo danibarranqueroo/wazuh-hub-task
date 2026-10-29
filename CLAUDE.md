@@ -36,6 +36,16 @@ On Dani's machine `uv` comes from mise and is missing from non-interactive shell
 ## Conventions
 
 - Code lives in `app/src/wazuh_brief/`, tests in `app/tests/`, fixtures in `app/tests/fixtures/`.
+
+  | Module | Job |
+  |---|---|
+  | `config.py` | Settings from env / `app/.env` |
+  | `wazuh_client.py` | Read-only Wazuh server API client, auth, retries, typed errors |
+  | `posture.py` | Collects one agent's data, computes coverage gaps, builds the summarizer input |
+  | `llm.py` | `Summarizer` protocol, `ClaudeSummarizer`, `MockSummarizer`, fallback |
+  | `models.py` | Pydantic models: Wazuh items, summarizer input, the public `Brief` |
+  | `main.py` | FastAPI routes and error mapping |
+- Fixtures prefixed `live_` are captured from the lab; `docs_` are synthesized from the Wazuh API reference. Keep that split and update `app/tests/fixtures/README.md` when adding one.
 - Type hints everywhere. Pydantic models for anything that crosses an HTTP boundary.
 - Errors from the Wazuh API are mapped to typed exceptions (`WazuhUnavailable`, `WazuhNotFound`, ...) in `wazuh_client.py`. Endpoints translate them to HTTP status codes; nothing else catches bare `Exception`, except the summarizer fallback.
 - Tests never need the live lab or an API key. HTTP is mocked with respx; the model is replaced with a fake.
