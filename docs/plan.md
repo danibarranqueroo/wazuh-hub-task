@@ -19,7 +19,7 @@ The task brief expects about 6 hours of work and gives 24 hours to deliver. This
 |---|---|---|
 | Wazuh version | 4.14.9 | Latest stable 4.x tag on `wazuh-docker`. Its images have arm64 builds. |
 | Where the server stack runs | Docker, using the official single-node compose | Reproducible and quick to tear down. The Wazuh OVA is x86-only and does not run on Apple Silicon. |
-| Where the agent runs | Ubuntu VM in OrbStack | A real host with systemd, SSH and a filesystem, so detections such as SSH brute force and file integrity monitoring behave as they would in production. |
+| Where the agent runs | Ubuntu VM in OrbStack | A real host with systemd, SSH and a filesystem, so detections such as SSH brute force and file integrity monitoring behave as they would in production. I already knew OrbStack from Falco proofs of concept at Prowler, where we picked it to run Linux VMs on Macs. |
 | Phase 2 stack | Python, FastAPI, httpx, pytest | Small, typed, quick to test. |
 | AI in Phase 2 | Claude API, with a deterministic mock fallback | Real output when a key is set. The service keeps working when the model is unavailable. |
 | Phase 2 data source | Wazuh server API only (agents, SCA, syscheck, a slice of syscollector) | One credential set and one client. Current posture is what a "fix first" brief needs. See ADR 0001. |

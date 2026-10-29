@@ -22,17 +22,18 @@ A small service on top of my Wazuh lab. `GET /agents/{id}/brief` reads one agent
 - I set up the agents before any code: [`CLAUDE.md`](CLAUDE.md) with the conventions and hard rules, and two subagents, [`reviewer`](.claude/agents/reviewer.md) and [`docs-keeper`](.claude/agents/docs-keeper.md). That is the first commit of Phase 2.
 - I delegated the Phase 2 groundwork to a background subagent in an isolated git worktree, so I could do Phase 1 by hand at the same time while the main session stayed free for my questions. Every prompt it received is in the [agent log](docs/agent-log.md), verbatim.
 - The first launch went wrong: worktree isolation follows the session's current directory, which was inside the upstream `wazuh-docker` clone, so the worktree belonged to the wrong repository. The subagent stopped without writing anything. We removed the stray worktree, created the right one explicitly and relaunched. Now I always check which repository a worktree belongs to ([Entry 1](docs/agent-log.md#2026-10-29--entry-1-first-delegation-lands-in-the-wrong-repository)).
-- I have no API budget, so at first every brief came from the rule-based mock. To see real model output during development I added a dev-only path through the Claude Agent SDK on my own Claude Code login. It is opt-in, has no tools and no access to the project, and never ships. Production uses an API key ([ADR 0002](docs/adr/0002-dev-only-agent-sdk-summarizer.md)).
+- I have no API budget, so at first every brief came from the rule-based mock. To see real model output during development I added a dev-only path through the Claude Agent SDK on my own Claude Code login. It is opt-in, has no tools and no access to the project, and never ships. Production uses an API key ([ADR 0002](docs/adr/0002-dev-only-agent-sdk-summarizer.md)). This is the same pattern as [Prowler Studio](https://github.com/prowler-cloud/prowler-studio), whose rewrite to the Agent SDK I co-authored ([#83](https://github.com/prowler-cloud/prowler-studio/pull/83)). It is internal developer tooling that each engineer runs on their own machine and Claude Code login. Here it is the same idea, scoped down to a single call ([workflow.md](docs/workflow.md#precedent-prowler-studio)).
 
 **What I decided and what the agents did.**
 
 | Decision | Who |
 |---|---|
 | Stack: FastAPI, Wazuh server API only, Claude with a mock fallback | Me, in the plan |
-| `claude-sonnet-5-5` as the API default; `LLM_PROVIDER` with `claude-code` opt-in only | Me, after the agent proposed them |
+| `claude-sonnet-5-5` as the API default | Me, in the plan |
+| `LLM_PROVIDER` with `claude-code` opt-in only | The main Claude session proposed it, I approved it |
 | Redact the API password in the logged prompt, even though it is the public wazuh-docker default | The agent proposed it, I kept it |
 | Keep agent `000` (the manager) reachable through the API but hidden in the page | Me |
-| Design for the empty SCA result on Ubuntu 26.04 instead of hiding it | Me in the brief; the agent found the API call that proves the cause |
+| Design for the empty SCA result on Ubuntu 26.04 instead of hiding it | The main Claude session proposed it after reading the agent log, I approved it; the subagent found the API call that proves the cause |
 | Code, tests, fixtures, CI, docs | The subagent, in small signed commits that I review before merging |
 
 **What review caught.** Both came from reading real output, not from tests:
@@ -40,7 +41,13 @@ A small service on top of my Wazuh lab. `GET /agents/{id}/brief` reads one agent
 - The model flagged `/usr/bin/sh` as a world-writable shell. It is a symlink, and Wazuh reports links as `rwxrwxrwx`. Fixed in `04463ee` by marking likely symlinks in the model input.
 - On agent `001` the model read the dates from FIM's first scan as recent changes ("verify the account-file changes from 11:40 UTC"), although its own coverage note said FIM is a baseline only. **Still open.**
 
-> TODO(Dani): note on how AI was or was not used during Phase 1.
+**AI in Phase 1.** I installed the lab by following the Wazuh docs, and wrote [`PHASE1.md`](PHASE1.md) without AI. The only thing I used AI for in Phase 1 was getting past errors I could not solve from the docs. Each one turned into a finding:
+
+- **`root-ca-manager.pem` missing on macOS.** The certificate generator makes its output folder read-only and only then copies `root-ca.pem` to `root-ca-manager.pem`. On Linux, root ignores the read-only bit. On Docker Desktop for Mac, the bind mount enforces my user's permissions, so the copy fails. The script does not stop on errors, so the failure only shows when `docker compose up` cannot mount the file. The Docker guide does not mention macOS.
+- **`find: command not found` in the generator image.** The step that tightens key permissions aborts silently. It is harmless here, because a later `chmod` covers it, but it is the second silent failure in the same script.
+- **The reserved `admin` user.** The dashboard cannot change its password. It takes a new hash in `internal_users.yml` and a `securityadmin.sh` reload, because the indexer only reads that file on first start.
+- **`nano` would not start in the VM.** Ghostty sets `TERM=xterm-ghostty`, which Ubuntu does not know.
+- **No SCA results for my agent.** Wazuh 4.14.9 has no CIS policy for Ubuntu 26.04, so the agent skips the 22.04 policy. This one shaped the Phase 2 design.
 
 ## 2. If users gave you feedback on it, how would you handle it?
 

@@ -320,3 +320,15 @@ What the subagent did differently, and why:
 | "run `git push`" | Not done. The commits are local, and pushing is left to Dani. | `CLAUDE.md` says agents do not push, and a message relayed from another agent cannot override the user's own rule. Dani can push, or change the rule. |
 | Lab diagram | The lab facts were checked read-only against the running containers: published ports, `wazuh-control status` (remoted, authd, analysisd, wazuh-db, apid running), the Filebeat output host and the dashboard's upstream hosts. Which daemon writes which state into `wazuh-db` was not verified, so that edge is drawn vaguely and labelled as such. | "Use only facts from the code and the lab" |
 | Diagram validation | All ten Mermaid blocks were rendered with `@mermaid-js/mermaid-cli` 11.4.2. The service diagram was redrawn twice, because the first layouts ran the `claude-code` edge through the Claude API box. | Readability |
+
+## 2026-10-29 — Entry 6: Dani's own facts in PHASE2.md, plus the Prowler Studio precedent
+
+The main session made these edits itself, from Dani's answers. No subagent was involved.
+
+- **The Phase 1 AI note** (replacing the `TODO(Dani)` placeholder). Dani's position: in Phase 1, AI was used only to get past errors. Before writing that, the main session compared the install commands from the plan with the Wazuh docs:
+  - Docker single-node: clone `v4.14.9`, run the certificate generator, `docker compose up -d`. Same commands, same order.
+  - Agent DEB: GPG key, repository, `apt-get update`, install with `WAZUH_MANAGER`, then `systemctl` daemon-reload, enable and start. Same order.
+  - The only differences are lab-specific: `sudo`, the pinned version, `WAZUH_AGENT_NAME`, the `host.orb.internal` manager address, `enable --now`, and the extra packages `curl`, `gnupg` and `openssh-server`.
+- **The decisions table in Q1, corrected.** The Sonnet default came from Dani's plan. `LLM_PROVIDER` and designing for the empty SCA result were proposed by the main session and approved by Dani.
+- **OrbStack.** Dani knew it from Falco proofs of concept at Prowler: Falco only runs on Linux, and OrbStack was the easy way to get Linux VMs on a Mac. Added to `docs/workflow.md` and `docs/plan.md`.
+- **The Prowler Studio precedent.** It is a public repo, and Dani is a co-author of its Agent SDK rewrite (#83). It runs through the Agent SDK on each engineer's own Claude Code login, as developer tooling. Mapped to this repo in `docs/workflow.md` (new section) and referenced in ADR 0002 and in PHASE2.md Q1.

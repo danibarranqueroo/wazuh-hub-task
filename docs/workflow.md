@@ -69,7 +69,7 @@ sequenceDiagram
 | Machine | macOS on Apple Silicon |
 | Terminal | Ghostty |
 | Wazuh stack | Docker Desktop, official `wazuh-docker` single-node compose |
-| Linux agent | OrbStack VM (Ubuntu 26.04) |
+| Linux agent | OrbStack VM (Ubuntu 26.04). I already knew OrbStack from Falco proofs of concept at Prowler: Falco only runs on Linux, and OrbStack was the option we found for spinning up Linux VMs on a Mac with little effort. |
 | Python | `uv` (through mise), ruff, pytest, respx |
 | GitHub | `gh` CLI, GitHub Actions for CI |
 | AI | Claude Code: `CLAUDE.md`, subagents, skills (the `claude-api` skill was loaded before the model code was written), plan mode, background agents in worktrees |
@@ -86,3 +86,17 @@ flowchart LR
 ```
 
 Someone from the API side could pick up UI work with the UI team's skills, and the UI owner reviewed it and did QA. In my experience the speed-up came from that cross-area work, not from the skills on their own: people could take tasks outside their usual area without waiting for that team, and the owner still kept the quality bar. The same idea is behind `CLAUDE.md` and the subagents here: the conventions and checks are written down once, so whoever (or whatever) makes the change follows them, and a human owner reviews.
+
+## Precedent: Prowler Studio
+
+[Prowler Studio](https://github.com/prowler-cloud/prowler-studio) is Prowler's public AI workflow for new security checks. It turns a ticket into a pull request that adds a check, tests and compliance mappings. I co-authored its rewrite to the Claude Agent SDK ([#83](https://github.com/prowler-cloud/prowler-studio/pull/83)). Several things in this repo come straight from there:
+
+| Prowler Studio | Here |
+|---|---|
+| Runs on each engineer's machine through the Agent SDK and their own Claude Code login. It is a tool for developers, not a hosted product. | The `claude-code` provider is a dev-only adapter on my own login. Production uses an API key ([ADR 0002](adr/0002-dev-only-agent-sdk-summarizer.md)). |
+| One agent per job (implementation → testing → compliance mapping → review → PR), each with its own `ALLOWED_TOOLS` list | The summarizer gets no tools and one turn. The reviewer and docs-keeper subagents each have a narrow scope. |
+| Typed pydantic results for every agent | Model output is validated against the `Draft` model, and anything invalid falls back to the mock |
+| Verification loops with a bounded number of attempts ("the check must load in Prowler") | Bounded retries in the Wazuh client, and validate-or-fallback for the model |
+| Isolated git worktrees per run. `--local` keeps changes local, and a human reviews the PR. | Phase 2 was built in its own worktree. Agents do not push; I review and push (`CLAUDE.md`). |
+| Shared Prowler skills loaded into every agent, and `AGENTS.md` for conventions | `CLAUDE.md` for conventions. The `claude-api` skill was loaded before the model code was written. |
+| Prompts as Jinja2 templates next to each agent | Not done here: the prompt lives in code. Moving it into a versioned template is the first step towards prompt versioning ([saas-target.md](saas-target.md#prompt-quality)). |

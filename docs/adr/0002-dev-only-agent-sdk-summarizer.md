@@ -13,6 +13,8 @@ I do have a Claude Code login. The Claude Agent SDK runs Claude Code as a librar
 
 So the login can serve me as a developer on my own machine. It cannot be what a product built on this service runs on.
 
+This is not a new pattern for me. [Prowler Studio](https://github.com/prowler-cloud/prowler-studio), whose rewrite to the Agent SDK I co-authored ([#83](https://github.com/prowler-cloud/prowler-studio/pull/83)), is internal developer tooling that each engineer runs through the Agent SDK on their own Claude Code login. This adapter uses the same split: the developer's own login for tooling on their machine, an API key for anything that serves customers.
+
 ## Decision
 
 Add `ClaudeCodeSummarizer` (`app/src/wazuh_brief/llm_claude_code.py`) as a **developer-only adapter** on the developer's own Claude Code login.
