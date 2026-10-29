@@ -332,3 +332,119 @@ The main session made these edits itself, from Dani's answers. No subagent was i
 - **The decisions table in Q1, corrected.** The Sonnet default came from Dani's plan. `LLM_PROVIDER` and designing for the empty SCA result were proposed by the main session and approved by Dani.
 - **OrbStack.** Dani knew it from Falco proofs of concept at Prowler: Falco only runs on Linux, and OrbStack was the easy way to get Linux VMs on a Mac. Added to `docs/workflow.md` and `docs/plan.md`.
 - **The Prowler Studio precedent.** It is a public repo, and Dani is a co-author of its Agent SDK rewrite (#83). It runs through the Agent SDK on each engineer's own Claude Code login, as developer tooling. Mapped to this repo in `docs/workflow.md` (new section) and referenced in ADR 0002 and in PHASE2.md Q1.
+
+## 2026-10-29 — Entry 7: the Phase 3 slide deck and demo script
+
+The main session delegated the Phase 3 material to a subagent working in a new worktree, `../wazuh-hub-task-phase3`, on the branch `phase3/presentation` (made from `phase2/hardening-brief` with `main` merged in, for the lab screenshots). For this task only, Dani allowed the subagent to view the files in `screenshots/` read-only and to reference them from the deck by relative path. `PHASE1.md`, `screenshots/` and `lab/` were not modified. This is the message it received, unchanged:
+
+<details>
+<summary>Prompt for the Phase 3 presentation</summary>
+
+````text
+You are building the Phase 3 presentation for Dani's Wazuh Hub technical task: a single self-contained HTML slide deck that he presents live in a meeting with the Wazuh Hub team. The meeting is "a conversation: you show us what you learned about Wazuh and what you built, and we talk about it together". The deck should help him tell the story clearly and look polished. It is not a wall of text.
+
+## Where to work
+- Work ONLY in `/Users/dani/Desktop/projects/wazuh-hub-task-phase3`. It is a git worktree on the branch `phase3/presentation`, made from `phase2/hardening-brief` with `main` merged in, so it has all Phase 2 docs and code plus `screenshots/01..11`. Run every command with an absolute `cd /Users/dani/Desktop/projects/wazuh-hub-task-phase3 && ...`.
+- Do not touch the other checkouts (`wazuh-hub-task`, `wazuh-hub-task-phase2`).
+- Read `CLAUDE.md` and follow it, with these exceptions, which Dani approved for this task only:
+  - You MAY view the files in `screenshots/` read-only, to pick and describe them.
+  - You MAY reference the screenshots from the deck by relative path.
+- Never modify, move or re-encode anything in `screenshots/`. Never create or edit `PHASE1.md` (it does not exist yet; Dani writes it by hand). Never touch `lab/`.
+- Commits: small and conventional, signed (global config), each ending with a blank line and then `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Do not push, and do not open PRs.
+
+## Deliverables
+1. `docs/presentation/index.html`, a single file:
+   - Inline CSS and JS. No CDN, no external fonts, no network requests, so it works offline in the meeting.
+   - Screenshots referenced as `../../screenshots/NN-name.png`.
+   - Diagrams as inline SVG or HTML/CSS. Not Mermaid, which would need a CDN.
+2. `docs/presentation/README.md`: how to open it (`open docs/presentation/index.html`), the keyboard controls, and how to print it to PDF.
+3. `docs/presentation/demo-script.md`: the live demo, step by step with exact commands, about 5–7 minutes, plus a fallback if something breaks live (use the saved examples in `docs/examples/`).
+4. Update the README repo map and add an entry to `docs/agent-log.md` with this prompt verbatim in a `<details>` block.
+
+## Deck mechanics
+- 16:9 slides that scale to the window. Arrow keys, space and PageUp/PageDown to navigate, Home and End.
+- A slide counter. A thin progress bar. A section label (Phase 1 / Phase 2 / What's next) in a corner.
+- `N` toggles a speaker-notes panel. Every slide gets 2–4 bullet talking points in a hidden notes element.
+- `F` toggles fullscreen.
+- The URL hash tracks the slide (`#7`), so a refresh keeps the position.
+- Print CSS: one slide per page, notes hidden, so "Print → Save as PDF" gives a clean handout.
+- Respect `prefers-reduced-motion`. Use subtle transitions only.
+
+## Visual design
+Calm and professional, technical. Think of a good engineering conference talk.
+- One accent colour (a Wazuh-friendly blue is fine), a neutral background and generous whitespace.
+- A system font stack, with a monospace stack for code.
+- Large type: titles of 40px or more at 1280px width, and nothing under 18px except captions.
+- At most about 25 words of body text per slide. Use diagrams, tables, big numbers and screenshots instead of paragraphs.
+- Screenshots are shown framed, with a one-line caption saying what each one shows.
+- Do not use Wazuh's logo or imitate their branding beyond the accent colour. Put Dani's name on the title slide: "Dani Barranquero".
+
+## Storyline (about 18–22 slides; merge or split as the content needs)
+Use ONLY facts from this repo:
+- `README.md`, `docs/plan.md`, `PHASE2.md`
+- `docs/architecture.md`, `docs/workflow.md`, `docs/saas-target.md`, `docs/runbook.md`
+- `docs/adr/*`, `docs/agent-log.md`, `docs/examples/*`, `app/`
+- the screenshots
+
+Do not invent numbers or claims. If something is future work, label it "future" or "would build".
+
+**Opening**
+1. Title: "Wazuh Hub technical task", Dani Barranquero, the date (2026-10-29).
+2. The three phases, and the one-line goal of each.
+
+**Phase 1: the lab** (headlines only. Dani writes PHASE1.md himself later and will align these slides with it, so keep claims factual and short, never interpretive.)
+3. The lab at a glance: an SVG diagram.
+   - The Mac with Docker Desktop: the manager, indexer and dashboard containers, with their ports (1514/1515/514 udp/55000, 9200, 443→5601).
+   - The OrbStack Ubuntu 26.04 VM running the agent, connecting to the manager over `host.orb.internal`.
+   - Wazuh 4.14.9.
+4. Why this setup: Docker for the stack (the Wazuh OVA is x86-only, and this Mac is Apple Silicon). OrbStack for a real Linux host, which Dani already knew from Falco proofs of concept at Prowler.
+5. How an event travels: agent (logcollector/syscheckd) → 1514 → manager (decoders and rules in analysisd) → alert → Filebeat → indexer → dashboard. Keep it at the level `docs/architecture.md` verifies.
+6. What broke, and what each break taught me: a compact table of the 5 findings, from the "AI in Phase 1" note in `PHASE2.md` Q1. Show screenshots 01 and 02 small, or on the next slide.
+7. Changing a reserved password: screenshots 05 and 06.
+8. Detection 1, SSH brute force: screenshot 09. Many rule 5710 (level 5) alerts, and one 5712 (level 10) correlation alert.
+9. Detection 2, file integrity monitoring in real time: screenshots 10 and 11 (added 554, modified 550, deleted 553).
+10. The agent is live: screenshots 07 and 08.
+
+**Phase 2: what to build and how**
+11. The question: "I have hundreds of failed CIS checks. What do I fix first?" Why this is a useful SaaS slice on top of Wazuh.
+12. Architecture: an SVG of browser → FastAPI → Wazuh server API :55000, and the provider choice (Claude API in production / Claude Code dev-only / rule-based mock), with the fallback edges.
+13. What one brief contains: the fields of the response, plus a trimmed real excerpt from `docs/examples/brief-000-claude-code.json`.
+14. Model vs. rules: a side-by-side of the top fixes in `brief-000-claude-code.json` and `brief-000-mock.json`.
+15. Coverage honesty: agent 001 on Ubuntu 26.04 has no CIS policy, so the brief says "not checked" rather than "compliant".
+16. Failure handling: a table of failure → behaviour (Wazuh down → 503 or stale cache, auth failure → 502, model down → mock with `fallback_reason`, health and readiness checks).
+17. How I worked with AI: a workflow diagram.
+    - plan mode → agent setup first (`CLAUDE.md`, subagents) → a background subagent in an isolated worktree, while the main session stayed free → small signed commits → PR → CI.
+    - Include the wrong-repo worktree incident as a lesson.
+18. What review caught: the `/usr/bin/sh` symlink flagged as world-writable (fixed), and baseline FIM dates read as changes (still open).
+19. The dev-only Agent SDK path and the Prowler Studio precedent: a small table mapping Prowler Studio's patterns to this repo.
+20. By the numbers: real counts only. Get them yourself: test count from `uv run pytest -q`, the number of commits on the branch, the number of ADRs, CI status. `uv` needs `PATH="$HOME/.local/share/mise/shims:$PATH"`.
+
+**What's next**
+21. From slice to SaaS: a compact diagram or table from `docs/saas-target.md`. Today vs. target: multi-tenant, queue, observability, status page, prompt versioning with evals from user feedback.
+22. With one more day: pick 2–3 concrete items already listed as future work in the repo docs. Then a "Questions?" closing line.
+
+## Verify
+- Open it headless and screenshot several slides, so you can look at the result and fix layout problems. There is no Google Chrome on this machine. Try `npx -y playwright@1.49.1 install chromium` and a tiny node script, with PATH prefix `$HOME/.local/share/mise/shims`. If that is impossible, say so and review the HTML carefully instead.
+- Check: no text overflows a slide at 1280×720 and at 1920×1080; every screenshot path resolves; notes toggle; hash navigation works; printing gives one slide per page.
+- Check that no external URL is loaded (grep for `http` in `src`/`href` attributes; plain text links are fine).
+- Ruff and pytest are untouched and still green.
+
+## Report back briefly
+- the commits
+- where you saved the slide screenshots used for checking (scratchpad path)
+- anything you could not verify
+- any slide whose facts Dani should double-check, especially the Phase 1 slides
+````
+
+</details>
+
+What the subagent did, and the choices it made:
+
+| Topic | What happened |
+|---|---|
+| Slides | 22 slides, as in the storyline. Each has a section label, a counter and 2 to 4 notes. |
+| Numbers on slide 20 | Measured, not copied: `uv run pytest -q` gave 83 passed; `git rev-list --count main..phase2/hardening-brief` gave 26; two files in `docs/adr/`; `gh pr checks 1` was green for the last pushed head of PR #1. The newest docs commits on the Phase 2 branch were not pushed yet, so the slide says "last pushed head". |
+| Event flow (slide 5) | Drawn only at the level `docs/architecture.md` verifies: agent, `remoted` on 1514, `analysisd`, Filebeat, indexer, dashboard. |
+| Phase 1 slides | Short facts taken from the screenshots, `docs/plan.md`, `docs/architecture.md` and PHASE2.md Q1. Dani aligns them with `PHASE1.md` once it is written. |
+| Rendering check | Headless Chromium (Playwright 1.49.1, in the session scratchpad, not in the repo) at 1280×720 and 1920×1080: no element outside a slide, all eleven screenshot references load, notes toggle, hash navigation survives a reload, print gives 22 pages of 1280×720, and the page makes no non-file requests. |
+| Demo script | Uses the mock on the main instance for speed. The failure-mode steps run on extra local ports with a wrong `WAZUH_API_URL` or no key, so the demo never stops a Wazuh container. The 503 step was run against a closed port; the steps that need the live lab were not run. |
