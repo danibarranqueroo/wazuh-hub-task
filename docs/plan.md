@@ -44,4 +44,6 @@ Where the Phase 2 material lives:
 | Stack decision | [`adr/0001-phase2-stack-and-shape.md`](adr/0001-phase2-stack-and-shape.md) |
 | Agent setup | [`../CLAUDE.md`](../CLAUDE.md), [`../.claude/agents/`](../.claude/agents/) |
 | How agents were directed | [`agent-log.md`](agent-log.md) |
-| Diagrams | `diagrams/` (to be added) |
+| Diagrams | [`architecture.md`](architecture.md), [`workflow.md`](workflow.md), [`saas-target.md`](saas-target.md) |
+| Operations | [`runbook.md`](runbook.md) |
+| Answers to the brief | [`../PHASE2.md`](../PHASE2.md) |

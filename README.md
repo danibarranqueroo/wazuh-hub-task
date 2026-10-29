@@ -13,7 +13,7 @@ This repository holds my work for the Wazuh Hub team's technical task. The task 
 ```
 .
 ├── PHASE1.md                # Phase 1 write-up (written by hand, no AI)
-├── PHASE2.md                # Phase 2 answers
+├── PHASE2.md                # Phase 2 answers to the brief's questions
 ├── CLAUDE.md                # Conventions and hard rules for AI agents working in this repo
 ├── .claude/agents/          # Subagents: reviewer, docs-keeper
 ├── .github/workflows/ci.yml # Lint and tests for app/ on every push and PR
@@ -25,10 +25,13 @@ This repository holds my work for the Wazuh Hub team's technical task. The task 
 │   └── tests/               # pytest + respx; fixtures/ has its own README
 └── docs/
     ├── plan.md              # Work plan and the decisions behind it
+    ├── architecture.md      # Diagrams: the lab, the service, one brief request
+    ├── workflow.md          # How I work, and the dev environment
+    ├── saas-target.md       # Drawn, not built: the multi-tenant SaaS version
+    ├── runbook.md           # Symptoms, checks and actions when something fails
     ├── agent-log.md         # How I directed AI agents, dated
     ├── adr/                 # Architecture decision records
-    ├── examples/            # Real briefs: claude-code vs mock for the same agent
-    └── diagrams/            # Architecture and workflow diagrams
+    └── examples/            # Real briefs: claude-code vs mock for the same agent
 ```
 
 ## Lab at a glance
@@ -185,6 +188,11 @@ The lab agent runs Ubuntu 26.04. Wazuh 4.14.9 ships no CIS policy for it. The ag
 
 | Document | What it covers |
 |---|---|
+| [`PHASE2.md`](PHASE2.md) | Answers to the brief's Phase 2 questions |
+| [`docs/architecture.md`](docs/architecture.md) | The lab, the service and one brief request, as diagrams |
+| [`docs/workflow.md`](docs/workflow.md) | How I work with agents, and the dev environment |
+| [`docs/saas-target.md`](docs/saas-target.md) | The multi-tenant target, drawn, with a today-vs-target table |
+| [`docs/runbook.md`](docs/runbook.md) | What to check and do when Wazuh, the model or the service fails |
 | [`docs/adr/0001-phase2-stack-and-shape.md`](docs/adr/0001-phase2-stack-and-shape.md) | Why FastAPI, server-API-only data, and Claude with a mock fallback |
 | [`docs/adr/0002-dev-only-agent-sdk-summarizer.md`](docs/adr/0002-dev-only-agent-sdk-summarizer.md) | Why a dev-only Agent SDK path exists, and why it never ships |
 | [`docs/agent-log.md`](docs/agent-log.md) | How AI agents were directed, including the full prompts |
