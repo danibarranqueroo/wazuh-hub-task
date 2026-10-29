@@ -1,6 +1,7 @@
 """Settings, read from environment variables or `app/.env`."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +22,9 @@ class Settings(BaseSettings):
     wazuh_max_retries: int = Field(default=2, ge=0, le=5)
 
     # Model
+    # auto: Claude API when ANTHROPIC_API_KEY is set, else mock. claude-code is dev-only and opt-in
+    # (Claude Agent SDK on the developer's own login, ADR 0002); auto never picks it.
+    llm_provider: Literal["auto", "anthropic", "claude-code", "mock"] = "auto"
     anthropic_api_key: SecretStr | None = None
     llm_model: str = DEFAULT_LLM_MODEL
     llm_timeout_seconds: float = Field(default=45.0, gt=0)

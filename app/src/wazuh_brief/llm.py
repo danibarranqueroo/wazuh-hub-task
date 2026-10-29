@@ -2,8 +2,11 @@
 
 - `ClaudeSummarizer` calls the Anthropic Messages API and asks for JSON that matches a schema.
 - `MockSummarizer` ranks findings by fixed rules. It is deterministic and needs no network.
-- `summarize` tries Claude when it is configured and falls back to the mock on any failure, and
-  reports which one produced the result.
+- `ClaudeCodeSummarizer` (in `llm_claude_code.py`) is a dev-only path through the Claude Agent SDK
+  on the developer's own Claude Code login. Opt-in only; see ADR 0002.
+- `select_summarizer` picks the primary summarizer from `LLM_PROVIDER`.
+- `summarize` tries the primary and falls back to the mock on any failure, and reports which one
+  produced the result.
 
 Both summarizers see exactly the same `BriefInput`, which holds no raw logs, hashes, IPs or
 credentials (see `models.BriefInput`).
@@ -20,6 +23,7 @@ from typing import Any, Literal, Protocol
 import anthropic
 from pydantic import ValidationError
 
+from .config import Settings
 from .models import BriefInput, Draft, DraftFix, InputCheck
 from .posture import check_weight, exposes_ssh, is_exposed, is_sensitive, is_world_writable
 
@@ -38,8 +42,12 @@ FALLBACK_CAPABLE_MODELS = {
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
+Source = Literal["claude", "claude-code", "mock"]
+
+
 class Summarizer(Protocol):
-    name: Literal["claude", "mock"]
+    name: Source
+    model: str
 
     async def summarize(self, payload: BriefInput) -> Draft: ...
 
@@ -224,6 +232,7 @@ class MockSummarizer:
     """Rule-based ranking. Deterministic: the same input always gives the same brief."""
 
     name: Literal["mock"] = "mock"
+    model = "rules"
 
     async def summarize(self, payload: BriefInput) -> Draft:
         return self.build(payload)
@@ -406,29 +415,74 @@ class ClaudeSummarizer:
         return draft
 
 
-# --- fallback -----------------------------------------------------------------------------------
+# --- selection and fallback ---------------------------------------------------------------------
+
+
+def select_summarizer(settings: Settings) -> tuple[Summarizer | None, str | None]:
+    """Primary summarizer for `LLM_PROVIDER`, or None plus the reason the mock will be used.
+
+    | LLM_PROVIDER | Primary |
+    |---|---|
+    | auto (default) | Claude API if ANTHROPIC_API_KEY is set, else the mock |
+    | anthropic | Claude API; the mock if ANTHROPIC_API_KEY is missing |
+    | claude-code | Dev only: Agent SDK on the local Claude Code login. Never chosen by auto. |
+    | mock | The mock |
+    """
+    key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else ""
+    provider = settings.llm_provider
+    if provider == "mock":
+        return None, "LLM_PROVIDER is mock"
+    if provider == "claude-code":
+        from .llm_claude_code import ClaudeCodeSummarizer
+
+        return (
+            ClaudeCodeSummarizer(settings.llm_model, timeout=settings.llm_timeout_seconds),
+            None,
+        )
+    if key:
+        return (
+            ClaudeSummarizer(
+                key,
+                settings.llm_model,
+                max_tokens=settings.llm_max_tokens,
+                timeout=settings.llm_timeout_seconds,
+            ),
+            None,
+        )
+    if provider == "anthropic":
+        return None, "LLM_PROVIDER is anthropic but ANTHROPIC_API_KEY is not set"
+    return None, NO_KEY_REASON
+
+
+NO_KEY_REASON = "ANTHROPIC_API_KEY is not set"
 
 
 @dataclass
 class SummaryResult:
     draft: Draft
-    source: Literal["claude", "mock"]
+    source: Source
     model: str | None
     fallback_reason: str | None
 
 
 async def summarize(
-    payload: BriefInput, primary: ClaudeSummarizer | None, mock: MockSummarizer
+    payload: BriefInput,
+    primary: Summarizer | None,
+    mock: MockSummarizer,
+    no_primary_reason: str = NO_KEY_REASON,
 ) -> SummaryResult:
-    """Claude if configured and working, otherwise the mock. Never raises for model failures."""
+    """The primary summarizer if there is one and it works, otherwise the mock. Never raises for
+    model failures."""
     if primary is None:
-        return SummaryResult(mock.build(payload), "mock", None, "ANTHROPIC_API_KEY is not set")
+        return SummaryResult(mock.build(payload), "mock", None, no_primary_reason)
     try:
         draft = await primary.summarize(payload)
     except SummarizerError as exc:
-        log.warning("Claude summarizer failed, using mock: %s", exc)
-        return SummaryResult(mock.build(payload), "mock", None, str(exc))
+        log.warning("%s summarizer failed, using mock: %s", primary.name, exc)
+        return SummaryResult(mock.build(payload), "mock", None, f"{primary.name}: {exc}")
     except Exception as exc:  # noqa: BLE001 - the fallback must hold whatever the SDK raises
-        log.exception("Unexpected summarizer error, using mock")
-        return SummaryResult(mock.build(payload), "mock", None, f"unexpected error: {exc!r}")
-    return SummaryResult(draft, "claude", primary.model, None)
+        log.exception("Unexpected %s summarizer error, using mock", primary.name)
+        return SummaryResult(
+            mock.build(payload), "mock", None, f"{primary.name}: unexpected error: {exc!r}"
+        )
+    return SummaryResult(draft, primary.name, primary.model, None)

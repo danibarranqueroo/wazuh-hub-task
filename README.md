@@ -21,12 +21,13 @@ This repository holds my work for the Wazuh Hub team's technical task. The task 
 ├── lab/                     # Notes for the local Wazuh lab
 ├── app/                     # Phase 2 service: Agent Hardening Brief
 │   ├── .env.example         # Every setting, with placeholders
-│   ├── src/wazuh_brief/     # config, wazuh_client, posture, llm, models, main, templates/
+│   ├── src/wazuh_brief/     # config, wazuh_client, posture, llm, llm_claude_code, models, main, templates/
 │   └── tests/               # pytest + respx; fixtures/ has its own README
 └── docs/
     ├── plan.md              # Work plan and the decisions behind it
     ├── agent-log.md         # How I directed AI agents, dated
     ├── adr/                 # Architecture decision records
+    ├── examples/            # Real briefs: claude-code vs mock for the same agent
     └── diagrams/            # Architecture and workflow diagrams
 ```
 
@@ -57,6 +58,19 @@ uv run uvicorn wazuh_brief.main:app --port 8000
 
 Open <http://localhost:8000/>, pick an agent, read the brief. The OpenAPI docs are at <http://localhost:8000/docs>.
 
+#### Dev only: real model output without an API key
+
+For local development without API budget, the brief can run through the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/python) on your own Claude Code login. It sends the same prompt, payload and schema as the API path, with no tools, one turn, and no project or user settings. It is opt-in, never selected automatically, and not part of the production design ([ADR 0002](docs/adr/0002-dev-only-agent-sdk-summarizer.md)).
+
+```bash
+cd app
+uv sync --extra claude-code          # adds claude-agent-sdk (bundles the Claude Code CLI, ~260 MB)
+claude auth status                   # you must already be logged in to Claude Code
+LLM_PROVIDER=claude-code uv run uvicorn wazuh_brief.main:app --port 8000
+```
+
+Responses then say `"source": "claude-code"`. If the SDK is missing, the CLI is not found, you are not logged in, the call times out or the reply is not valid JSON, the brief falls back to the mock and `fallback_reason` says why. [`docs/examples/`](docs/examples/) has a real `claude-code` brief next to the mock brief for the same agent.
+
 Tests and lint need neither the lab nor an API key:
 
 ```bash
@@ -77,9 +91,10 @@ All settings come from environment variables or `app/.env` (gitignored). [`app/.
 | `WAZUH_VERIFY_TLS` | `true` | Verify the API certificate. The `wazuh-docker` lab uses a self-signed one, so the example sets `false`. |
 | `WAZUH_TIMEOUT_SECONDS` | `10` | Per-request timeout |
 | `WAZUH_MAX_RETRIES` | `2` | Extra attempts on connection errors, timeouts, 429 and 5xx, with exponential backoff (0.5 s, 1 s, ...) |
-| `ANTHROPIC_API_KEY` | empty | Empty means mock summarizer only |
-| `LLM_MODEL` | `claude-sonnet-5-5` | Claude model ID |
-| `LLM_TIMEOUT_SECONDS` | `45` | Model call timeout; on expiry the mock is used |
+| `LLM_PROVIDER` | `auto` | `auto`: Claude API if `ANTHROPIC_API_KEY` is set, else mock. `anthropic`: Claude API, mock if the key is missing. `claude-code`: dev only, Agent SDK on your Claude Code login. `mock`: always the mock. |
+| `ANTHROPIC_API_KEY` | empty | Claude API key. Empty means mock, unless `LLM_PROVIDER=claude-code`. |
+| `LLM_MODEL` | `claude-sonnet-5-5` | Claude model ID, for both the API and the `claude-code` path |
+| `LLM_TIMEOUT_SECONDS` | `45` | Model call timeout; on expiry the mock is used. The `claude-code` path uses at least 120. |
 | `LLM_MAX_TOKENS` | `6000` | Output token cap for the model call |
 
 ### Endpoints
@@ -133,9 +148,9 @@ Trimmed example for the lab agent, which has no SCA results (see below):
 
 | Field | Meaning |
 |---|---|
-| `source` | `claude` or `mock`: which summarizer wrote `summary`, `fixes` and `coverage.note` |
-| `model` | Claude model ID when `source` is `claude`, else `null` |
-| `fallback_reason` | Why the mock ran (no key, timeout, API error, refusal, bad output), else `null` |
+| `source` | `claude` (API), `claude-code` (dev-only Agent SDK path) or `mock`: which summarizer wrote `summary`, `fixes` and `coverage.note` |
+| `model` | Model ID that answered when `source` is `claude` or `claude-code`, else `null` |
+| `fallback_reason` | Why the mock ran (no key, `LLM_PROVIDER=mock`, timeout, API or SDK error, refusal, bad output), prefixed with the summarizer that failed, else `null` |
 | `fixes[].category` | `sca` (failed CIS check), `fim` (file integrity), `exposure` (listening port), `coverage` (missing data) |
 | `coverage.confidence` | `high`: SCA results and agent active. `medium`: SCA results but agent not active. `low`: no SCA results. |
 | `coverage.gaps` | Computed by rule, not by the model, so they are always present and always the same for the same data |
@@ -160,7 +175,7 @@ Read-only calls only. The single non-GET request is the login.
 1. **Collect** the calls above (`posture.collect_posture`).
 2. **Compute coverage by rule** (`posture.coverage_gaps`): missing SCA, truncated check lists, baseline-only FIM, inactive agent, and the fact that alerts and vulnerabilities are out of scope.
 3. **Rank and trim** (`posture.build_input`): failed checks are weighted by keywords (SSH, authentication, firewall, privileges, audit), MITRE mappings and whether SSH is exposed. The top 60 go into a small `BriefInput`. It holds no raw logs, hashes, agent IPs or credentials.
-4. **Summarize** (`llm.summarize`): Claude with a JSON-schema output when configured, else or on any failure the rule-based `MockSummarizer`, which reads the same `BriefInput`.
+4. **Summarize** (`llm.summarize`): the summarizer chosen by `LLM_PROVIDER` (`llm.select_summarizer`), normally Claude with a JSON-schema output. If none is configured, or on any failure, the rule-based `MockSummarizer` runs on the same `BriefInput`.
 
 ### Agents without SCA results
 
@@ -171,6 +186,7 @@ The lab agent runs Ubuntu 26.04. Wazuh 4.14.9 ships no CIS policy for it. The ag
 | Document | What it covers |
 |---|---|
 | [`docs/adr/0001-phase2-stack-and-shape.md`](docs/adr/0001-phase2-stack-and-shape.md) | Why FastAPI, server-API-only data, and Claude with a mock fallback |
+| [`docs/adr/0002-dev-only-agent-sdk-summarizer.md`](docs/adr/0002-dev-only-agent-sdk-summarizer.md) | Why a dev-only Agent SDK path exists, and why it never ships |
 | [`docs/agent-log.md`](docs/agent-log.md) | How AI agents were directed, including the full prompts |
 | [`CLAUDE.md`](CLAUDE.md) | Conventions and hard rules every agent follows |
 | [`app/tests/fixtures/README.md`](app/tests/fixtures/README.md) | Which fixtures are live captures and which are synthesized |

@@ -173,7 +173,7 @@ class AgentInfo(BaseModel):
 class Brief(BaseModel):
     agent: AgentInfo
     generated_at: datetime
-    source: Literal["claude", "mock"]
+    source: Literal["claude", "claude-code", "mock"]
     model: str | None = None
     fallback_reason: str | None = None
     stale: bool = False

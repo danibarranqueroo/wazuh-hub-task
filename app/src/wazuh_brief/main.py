@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from .config import Settings, get_settings
-from .llm import ClaudeSummarizer, MockSummarizer, summarize
+from .llm import MockSummarizer, Summarizer, select_summarizer, summarize
 from .models import AgentInfo, AgentListItem, Brief, Coverage, ErrorBody, Fix, StaleBrief
 from .posture import CHECKS_SENT, build_input, collect_posture, confidence
 from .wazuh_client import (
@@ -43,7 +43,7 @@ def _error(status: int, error: str, detail: str) -> JSONResponse:
 def create_app(
     settings: Settings | None = None,
     wazuh: WazuhClient | None = None,
-    claude: ClaudeSummarizer | None = None,
+    summarizer: Summarizer | None = None,
 ) -> FastAPI:
     """Build the app. Tests pass their own client and summarizer; production reads settings."""
     settings = settings or get_settings()
@@ -58,21 +58,19 @@ def create_app(
             timeout=settings.wazuh_timeout_seconds,
             max_retries=settings.wazuh_max_retries,
         )
-        primary = claude
-        if primary is None and settings.anthropic_api_key is not None:
-            key = settings.anthropic_api_key.get_secret_value()
-            if key:
-                primary = ClaudeSummarizer(
-                    key,
-                    settings.llm_model,
-                    max_tokens=settings.llm_max_tokens,
-                    timeout=settings.llm_timeout_seconds,
-                )
+        if summarizer is not None:
+            primary, reason = summarizer, None
+        else:
+            primary, reason = select_summarizer(settings)
         app.state.wazuh = client
-        app.state.claude = primary
+        app.state.primary = primary
+        app.state.no_primary_reason = reason
         app.state.mock = MockSummarizer()
         app.state.cache = {}  # agent_id -> last good Brief, per process
-        log.info("Summarizer: %s", f"claude ({primary.model})" if primary else "mock only")
+        log.info(
+            "Summarizer: %s",
+            f"{primary.name} ({primary.model})" if primary else f"mock only ({reason})",
+        )
         try:
             yield
         finally:
@@ -147,7 +145,7 @@ def create_app(
             return StaleBrief(**cached.model_dump(exclude={"stale"}), stale_reason=str(exc))
 
         payload = build_input(posture)
-        result = await summarize(payload, state.claude, state.mock)
+        result = await summarize(payload, state.primary, state.mock, state.no_primary_reason or "")
         agent = posture.agent
         brief = Brief(
             agent=AgentInfo(

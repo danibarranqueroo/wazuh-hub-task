@@ -172,6 +172,7 @@ async def test_model_failures_fall_back_to_mock(payload_002, messages, reason):
     result = await summarize(payload_002, claude_with(messages), MockSummarizer())
 
     assert result.source == "mock"
+    assert result.fallback_reason.startswith("claude: ")
     assert reason in result.fallback_reason
     assert result.draft == MockSummarizer().build(payload_002)
 

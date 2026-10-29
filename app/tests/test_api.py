@@ -13,10 +13,10 @@ from wazuh_brief.main import create_app
 from wazuh_brief.wazuh_client import WazuhClient
 
 
-def make_client(clock, claude=None) -> TestClient:
+def make_client(clock, summarizer=None) -> TestClient:
     settings = Settings(_env_file=None, wazuh_api_url=BASE_URL, anthropic_api_key=None)
     wazuh = WazuhClient(BASE_URL, "user", "pass", max_retries=1, backoff_base=0, clock=clock)
-    return TestClient(create_app(settings=settings, wazuh=wazuh, claude=claude))
+    return TestClient(create_app(settings=settings, wazuh=wazuh, summarizer=summarizer))
 
 
 @pytest.fixture
@@ -139,7 +139,7 @@ def test_brief_from_claude(clock, wazuh_mock):
     route_docs_agent_002(wazuh_mock)
     claude = claude_with(FakeMessages(result=fake_response(json.dumps(GOOD_OUTPUT))))
 
-    with make_client(clock, claude=claude) as api:
+    with make_client(clock, summarizer=claude) as api:
         body = api.get("/agents/002/brief").json()
 
     assert body["source"] == "claude"
