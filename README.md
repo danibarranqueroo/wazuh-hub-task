@@ -90,7 +90,7 @@ All settings come from environment variables or `app/.env` (gitignored). [`app/.
 |---|---|---|
 | `WAZUH_API_URL` | `https://localhost:55000` | Wazuh server API base URL |
 | `WAZUH_API_USER` | `wazuh-wui` | API user. Read-only permissions are enough. |
-| `WAZUH_API_PASSWORD` | empty | API password |
+| `WAZUH_API_PASSWORD` | empty | API password. In the `wazuh-docker` lab it is `API_PASSWORD` under `wazuh.manager` in `single-node/docker-compose.yml`. |
 | `WAZUH_VERIFY_TLS` | `true` | Verify the API certificate. The `wazuh-docker` lab uses a self-signed one, so the example sets `false`. |
 | `WAZUH_TIMEOUT_SECONDS` | `10` | Per-request timeout |
 | `WAZUH_MAX_RETRIES` | `2` | Extra attempts on connection errors, timeouts, 429 and 5xx, with exponential backoff (0.5 s, 1 s, ...) |
