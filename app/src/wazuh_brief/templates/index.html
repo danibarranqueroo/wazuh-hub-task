@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Hardening Brief</title>
+  <style>
+    :root {
+      --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e2e2dc;
+      --accent: #2856c7; --warn-bg: #fff4e0; --warn: #8a5300; --bad: #a32020;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161615; --panel: #1f1f1d; --text: #ececea; --muted: #a0a09a; --line: #34342f;
+        --accent: #7aa2ff; --warn-bg: #3a2c12; --warn: #f2c26b; --bad: #ff8a8a;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+           font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { padding: 20px 16px 8px; max-width: 1100px; margin: 0 auto; }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; color: var(--muted); }
+    main { display: grid; grid-template-columns: 260px 1fr; gap: 16px;
+           max-width: 1100px; margin: 0 auto; padding: 16px; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
+    #agents button { display: block; width: 100%; text-align: left; background: none; color: inherit;
+                     border: 1px solid transparent; border-radius: 6px; padding: 8px; cursor: pointer; font: inherit; }
+    #agents button:hover { border-color: var(--line); }
+    #agents button[aria-current="true"] { border-color: var(--accent); }
+    .sub { color: var(--muted); font-size: 13px; }
+    .badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px;
+             border: 1px solid var(--line); color: var(--muted); margin-right: 6px; }
+    .badge.stale, .badge.low { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+    ol.fixes { padding-left: 22px; margin: 0; }
+    ol.fixes li { margin: 0 0 16px; }
+    ol.fixes h3 { font-size: 16px; margin: 0 0 4px; }
+    .label { font-weight: 600; }
+    code, .evidence { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    .evidence { color: var(--muted); margin: 4px 0 0; padding-left: 18px; }
+    .coverage { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 10px 12px; margin: 12px 0; }
+    .coverage ul { margin: 6px 0 0; padding-left: 18px; }
+    .error { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Agent Hardening Brief</h1>
+    <p>Hundreds of failed checks? Pick an agent to see what to fix first.</p>
+  </header>
+  <main>
+    <section class="panel" aria-labelledby="agents-h">
+      <h2 id="agents-h">Agents</h2>
+      <div id="agents"><span class="sub">Loading…</span></div>
+    </section>
+    <section class="panel" aria-live="polite" id="brief">
+      <span class="sub">No agent selected.</span>
+    </section>
+  </main>
+  <script>
+    // Plain DOM building with textContent only, so no Wazuh or model text is ever parsed as HTML.
+    const el = (tag, props = {}, ...children) => {
+      const node = Object.assign(document.createElement(tag), props);
+      for (const c of children) if (c != null) node.append(c);
+      return node;
+    };
+
+    async function getJSON(url) {
+      const res = await fetch(url);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+      return body;
+    }
+
+    async function loadAgents() {
+      const box = document.getElementById("agents");
+      try {
+        const agents = await getJSON("/agents");
+        box.replaceChildren();
+        if (!agents.length) box.append(el("span", { className: "sub", textContent: "No agents enrolled." }));
+        for (const a of agents) {
+          const btn = el("button", { type: "button" },
+            el("div", { textContent: `${a.id} · ${a.name}` }),
+            el("div", { className: "sub", textContent: `${a.os} · ${a.status}` }));
+          btn.addEventListener("click", () => {
+            box.querySelectorAll("button").forEach(b => b.removeAttribute("aria-current"));
+            btn.setAttribute("aria-current", "true");
+            loadBrief(a.id);
+          });
+          box.append(btn);
+        }
+      } catch (err) {
+        box.replaceChildren(el("span", { className: "error", textContent: err.message }));
+      }
+    }
+
+    async function loadBrief(id) {
+      const box = document.getElementById("brief");
+      box.replaceChildren(el("span", { className: "sub", textContent: `Building brief for agent ${id}…` }));
+      try {
+        const b = await getJSON(`/agents/${encodeURIComponent(id)}/brief`);
+        const badges = el("p", {},
+          el("span", { className: "badge", textContent: b.source === "claude" ? `claude · ${b.model}` : "mock summarizer" }),
+          el("span", { className: `badge ${b.coverage.confidence}`, textContent: `confidence: ${b.coverage.confidence}` }),
+          b.stale ? el("span", { className: "badge stale", textContent: "stale: Wazuh unreachable" }) : null);
+        const gaps = el("ul", {}, ...b.coverage.gaps.map(g => el("li", { textContent: g })));
+        const fixes = el("ol", { className: "fixes" }, ...b.fixes.map(f => el("li", {},
+          el("h3", { textContent: f.title }),
+          el("div", { className: "sub", textContent: [f.category.toUpperCase(), ...f.references].join(" · ") }),
+          el("p", {}, el("span", { className: "label", textContent: "Why: " }), f.why),
+          el("p", {}, el("span", { className: "label", textContent: "Fix: " }), f.remediation),
+          f.evidence.length ? el("ul", { className: "evidence" }, ...f.evidence.map(e => el("li", { textContent: e }))) : null)));
+        box.replaceChildren(
+          el("h2", { textContent: `${b.agent.name} · ${b.agent.os}` }),
+          badges,
+          el("p", { textContent: b.summary }),
+          el("div", { className: "coverage" },
+            el("span", { className: "label", textContent: "Coverage: " }), b.coverage.note, gaps),
+          fixes,
+          el("p", { className: "sub", textContent: `Generated ${new Date(b.generated_at).toLocaleString()}` +
+            (b.fallback_reason ? ` · mock used because: ${b.fallback_reason}` : "") }));
+      } catch (err) {
+        box.replaceChildren(el("span", { className: "error", textContent: err.message }));
+      }
+    }
+
+    loadAgents();
+  </script>
+</body>
+</html>
