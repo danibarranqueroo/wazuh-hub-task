@@ -182,6 +182,88 @@ class Brief(BaseModel):
     coverage: Coverage
 
 
+class StaleBrief(Brief):
+    """A cached brief served because Wazuh is unreachable."""
+
+    stale: bool = True
+    stale_reason: str
+
+
+# --- What the summarizer sees -------------------------------------------------------------------
+# This is everything a summarizer (Claude or the mock) receives. It is deliberately small: no raw
+# logs, no hashes, no IP addresses, no credentials.
+
+
+class InputAgent(BaseModel):
+    name: str
+    os: str
+    status: str
+    wazuh_version: str | None = None
+
+
+class InputPolicy(BaseModel):
+    policy_id: str
+    name: str
+    score: int | None
+    passed: int
+    failed: int
+
+
+class InputCheck(BaseModel):
+    id: int
+    policy_id: str
+    title: str
+    rationale: str
+    remediation: str
+    cis: list[str] = []
+    mitre_techniques: list[str] = []
+
+
+class InputFile(BaseModel):
+    file: str
+    perm: str | None
+    owner: str | None
+    changes: int
+    mtime: str | None
+
+
+class InputPort(BaseModel):
+    protocol: str
+    address: str
+    port: int
+    process: str | None
+
+
+class BriefInput(BaseModel):
+    agent: InputAgent
+    sca_applicable: bool
+    sca_policies: list[InputPolicy]
+    sca_configured_policies: list[str] | None
+    sca_failed_checks_total: int
+    sca_failed_checks: list[InputCheck]
+    fim_entries_total: int
+    fim_recent: list[InputFile]
+    listening_ports: list[InputPort]
+    coverage_gaps: list[str]
+
+
+class DraftFix(BaseModel):
+    title: str
+    category: Category
+    why: str
+    remediation: str
+    evidence: list[str] = []
+    references: list[str] = []
+
+
+class Draft(BaseModel):
+    """What a summarizer returns. The service adds ranks, coverage counts and metadata."""
+
+    summary: str
+    fixes: list[DraftFix]
+    coverage_note: str
+
+
 class AgentListItem(BaseModel):
     id: str
     name: str
