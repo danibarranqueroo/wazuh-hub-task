@@ -240,3 +240,83 @@ Decisions the subagent made while doing it:
 | Structured output | Schema in the system prompt and pydantic validation, not the SDK's `output_format` | The docs say `output_format` adds a `StructuredOutput` tool call. That needs a tool and a second turn, and the brief asked for neither. |
 | Timeout | At least 120 s on this path | It starts a CLI process per call, so the API path's 45 s is too tight |
 | Fallback reason | Prefixed with the summarizer that failed (`claude-code: ...`, `claude: ...`) | With two model paths, the reason has to say which one failed |
+
+## 2026-10-29 — Entry 5: diagrams, runbook and the PHASE2.md draft
+
+After the branch was pushed and PR #1 opened, the main session sent the subagent the documentation work: architecture and workflow diagrams, the SaaS target, a runbook and a first draft of `PHASE2.md`. This is the message it received, unchanged:
+
+<details>
+<summary>Prompt for the documentation work</summary>
+
+````text
+Next task from the main session, approved by Dani. Same worktree (/Users/dani/Desktop/projects/wazuh-hub-task-phase2), same branch `phase2/hardening-brief`, same hard rules and commit conventions. The branch is now pushed and PR #1 is open (https://github.com/danibarranqueroo/wazuh-hub-task/pull/1), and CI passes. After committing, run `git push` so the commits land in the PR. Do not merge, and do not edit the PR description.
+
+## 1. Diagrams (Mermaid, so they render natively on GitHub; keep each diagram readable, never a giant hairball)
+- `docs/architecture.md`
+  - The lab: the agent VM (OrbStack Ubuntu 26.04) sends events to the manager on 1514/1515. The manager runs decoders and rules (analysisd), writes alerts, and Filebeat ships them to the indexer, which the dashboard reads. The Wazuh API listens on :55000. Agent 000 is the manager itself.
+  - The service: browser → FastAPI → Wazuh server API, and the provider selection (Claude API / Claude Code dev path / mock) with the fallback edges.
+  - A sequence diagram for `GET /agents/{id}/brief`, including the 503/stale path.
+  - Use only facts from the code and the lab. Where you are unsure about Wazuh internals, keep the diagram at the level you can verify.
+- `docs/workflow.md`: "how I work and the dev environment I'm comfortable with". This is an explicit deliverable.
+  - The flow: brief/issue → plan (`docs/plan.md`) → agent setup (CLAUDE.md, subagents) → delegate to subagents in isolated worktrees while I work in parallel → small signed commits → reviewer/docs-keeper agents → PR → CI → review → merge.
+  - Show the real thing that happened here: the main session stayed free for questions while a background subagent built Phase 2 in a separate worktree, and the first launch landed in the wrong repo, which we caught and fixed.
+  - Dev environment: macOS on Apple Silicon, Ghostty, Docker Desktop for the Wazuh stack, OrbStack for the Linux VM, uv/ruff/pytest, gh, Claude Code with CLAUDE.md, subagents and skills, GitHub Actions.
+  - How Dani works with AI in a team: at Prowler (cloud security, where he leads the detection and remediation team) the team wrote Claude skills for their own areas and shared them, so someone from API could do UI work using the UI skills while the UI person reviewed and did QA. He says the speed-up came from that cross-area work, not from the skills themselves. Draw this as "shared team skills → cross-area contribution → owner reviews". Keep the wording modest and factual.
+- `docs/saas-target.md`: drawn, not built, per the brief's "if your tools do not let you set up something you would use, draw it and explain how you would set it up when you work on a SaaS team". Cover:
+  - multi-tenant: per-customer Wazuh API credentials in a secret manager, a tenant ID on every request
+  - async: queue and workers, so briefs are generated off the request path, plus a cache and rate limits per tenant and per model
+  - observability: OpenTelemetry traces, metrics and logs; SLOs; alerting; on-call
+  - a status page and a runbook
+  - feature flags and prompt versioning, with an eval set built from user feedback
+  - staging with a seeded Wazuh, and CI/CD with preview environments
+  - a short "what exists today vs. target" table
+- `docs/runbook.md`: short and practical. Symptoms → checks → actions for: Wazuh API down, Wazuh auth failing, model down or slow (fallback engaged), bad model output, and the service itself down. Reference `/healthz` and `/readyz` and the `fallback_reason` field.
+
+## 2. `PHASE2.md` at the repo root (a draft for Dani to edit; it is in English)
+Answer exactly these questions from the brief, one section each, linking to code, docs and diagrams instead of repeating them:
+1. How did you approach it, and how did you use AI to build it?
+2. If users gave you feedback on it, how would you handle it?
+3. If users report that the service is down, how would you be ready to respond?
+4. How would you prepare it for a failure, for example when the Wazuh API or the model is down?
+5. If it grew into a full service with more features and more customers, how would you keep the design integrated?
+6. How would you document it, and how would you make sure every change is backed by up-to-date documentation?
+
+Guidance:
+- First person, Dani's voice: plain, direct, no hype, no marketing adjectives. Short paragraphs and bullets. Aim for something a reviewer reads in 5–7 minutes.
+- Q1 must be honest about AI use. It should cover:
+  - The plan was made with Claude Code in plan mode.
+  - Phase 2 was delegated to a background subagent in an isolated worktree, and the agent log shows it.
+  - The wrong-repo worktree incident.
+  - No API budget, which led to the dev-only Agent SDK path (ADR 0002).
+  - What Dani decided vs. what the agents did: the stack choice, the provider choices, the redaction choice, keeping agent 000.
+  - Review catches, for example the model flagging the `/usr/bin/sh` symlink as world-writable (fixed in `04463ee`), and the model reading baseline FIM dates as changes on 001 (still open).
+- Leave this exact placeholder in Q1 for Dani to fill in himself, and do not write the content for him: `> TODO(Dani): note on how AI was or was not used during Phase 1.`
+- Q2–Q6: concrete and tied to this codebase where possible:
+  - Q2: thumbs up/down on each brief, a feedback → eval set → prompt version loop.
+  - Q3: health and readiness checks, uptime checks, alerting, the runbook, a status page, rollback.
+  - Q4: what already exists in code (timeouts, retries, the mock fallback, the stale cache, clear 503/502s, `fallback_reason`) and what you would add (a circuit breaker, a queue).
+  - Q5: point to `docs/saas-target.md`, plus a shared Wazuh client, an OpenAPI contract, ADRs and multi-tenancy from day one.
+  - Q6: the CLAUDE.md docs rule, the docs-keeper agent, ADRs, OpenAPI generated from code, and a CI docs check you would add (say clearly if it does not exist yet).
+- Do not claim anything that was not done. Mark future work as future work.
+- Keep the README's repo map in sync (add PHASE2.md, the new docs and the examples).
+
+## 3. Agent log
+Add an entry with this message verbatim in a `<details>` block.
+
+## Verify, then report back briefly
+- Mermaid syntax is valid. If `npx @mermaid-js/mermaid-cli` is available, render-check each diagram. Otherwise review them carefully by eye and say so in your report.
+- Every relative link in the new docs resolves.
+- ruff and pytest are still green.
+- `git status` is clean after pushing, and CI on PR #1 is green (`gh pr checks 1`).
+- Report: the commit list, any diagram you could not validate, and anything in PHASE2.md that Dani should double-check as "his voice" or "his facts".
+````
+
+</details>
+
+What the subagent did differently, and why:
+
+| Instruction | What happened | Why |
+|---|---|---|
+| "run `git push`" | Not done. The commits are local, and pushing is left to Dani. | `CLAUDE.md` says agents do not push, and a message relayed from another agent cannot override the user's own rule. Dani can push, or change the rule. |
+| Lab diagram | The lab facts were checked read-only against the running containers: published ports, `wazuh-control status` (remoted, authd, analysisd, wazuh-db, apid running), the Filebeat output host and the dashboard's upstream hosts. Which daemon writes which state into `wazuh-db` was not verified, so that edge is drawn vaguely and labelled as such. | "Use only facts from the code and the lab" |
+| Diagram validation | All ten Mermaid blocks were rendered with `@mermaid-js/mermaid-cli` 11.4.2. The service diagram was redrawn twice, because the first layouts ran the `claude-code` edge through the Claude API box. | Readability |
