@@ -152,3 +152,51 @@ Keep it short:
 The only edit to the prompt above is the redacted API password. It is the public wazuh-docker default, but a password in a tracked file is still a password in a tracked file, and `CLAUDE.md` forbids it.
 
 ---
+
+## 2026-10-29 — Entry 3: decisions made by the subagent during the build
+
+Short notes on choices the subagent made on its own, so Dani can review them.
+
+### Order of work
+
+Agent setup first (`CLAUDE.md`, the two subagents), then this log and ADR 0001, then code, one module per commit with its tests in the next commit. Docs that describe behaviour (README endpoints and settings) went into the same commit as the code they describe.
+
+### The prompt in Entry 2 is redacted in one place
+
+The prompt contained the Wazuh API password. It is the public `wazuh-docker` default, but `CLAUDE.md` forbids secrets in tracked files, so the log shows `<redacted: wazuh-docker default>` instead. Everything else is verbatim.
+
+### SCA is empty on the lab agent: design for the gap, do not hide it
+
+**Finding.** `GET /sca/001` returns zero policies. The agent runs Ubuntu 26.04.1 LTS. Wazuh 4.14.9 ships no CIS policy for 26.04, so the agent is configured with `cis_ubuntu22-04.yml` and skips it, because the policy's "Check Ubuntu version" requirement fails. Waiting will not change this.
+
+**What the subagent found on top of that.** The server API can show the cause without reading the agent's log. `GET /agents/001/config/wmodules/wmodules` returns the agent's live SCA configuration, which lists `/var/ossec/ruleset/sca/cis_ubuntu22-04.yml`. The service compares that file name with the policy ID it would expect for the agent's OS (`cis_ubuntu26-04`) and states the mismatch in the brief.
+
+**How the design handles it.**
+
+| Concern | Handling |
+|---|---|
+| A brief with no SCA findings looks like a clean host | The coverage gap is computed by rule, not by the model, and says "a clean brief here means 'not checked', not 'compliant'". Confidence is `low`. The first fix is to restore SCA coverage. |
+| The brief still has to be useful | Two more sources, both read-only server API: recent FIM entries (`/syscheck`) and listening ports (`/syscollector/{id}/ports`). On the lab this produces an SSH exposure fix, because port 22 listens on all interfaces. |
+| The SCA path must still work | Fully implemented and tested with fixtures synthesized from the Wazuh 4.14 API reference for a made-up Ubuntu 24.04 agent `002`. `app/tests/fixtures/README.md` says which fixtures are synthesized. |
+| Is the synthesized shape right? | The manager (agent `000`, Amazon Linux 2023) does have real SCA results in the lab. Its failed checks have the same fields as the spec examples, and a live `GET /agents/000/brief` ran the whole SCA path on real data (46 failed checks, confidence `high`). The UI still hides `000`; the API accepts it. |
+
+When Dani adds an Ubuntu 24.04 agent, it should get real SCA results with no code change.
+
+### Model choice and call shape
+
+The `claude-api` skill was loaded before `llm.py` was written. The prompt asked for a current Sonnet-class model, so the default is `claude-sonnet-5-5`, overridable with `LLM_MODEL`. Per the skill:
+
+- JSON output through `output_config.format` with a JSON schema; the result is validated again with pydantic.
+- `effort: medium`, `max_tokens` 6000 (thinking counts against it), no `temperature` (rejected on current models).
+- `fallbacks: "default"` with beta `server-side-fallback-2026-07-01`, so a safety-classifier refusal is retried server-side on another model. Sent only for models that accept it.
+- SDK retries are off (`max_retries=0`) and the call is wrapped in a hard timeout. A slow or failing model call falls back to the mock instead of making the page wait.
+
+None of this was exercised against the real API: no `ANTHROPIC_API_KEY` was set in the subagent's environment. The request shape is covered by a unit test with a fake client.
+
+### The mock is a real ranking, not a placeholder
+
+`MockSummarizer` scores candidates on one documented scale (in `llm._Candidate`): missing SCA coverage, then world-writable sensitive files, then failed SCA checks weighted by keyword (SSH, authentication, firewall, privileges, audit), MITRE mapping and SSH exposure, then changed sensitive files, then exposed ports. The same weights pre-rank failed checks before the top 60 go to Claude, so on a host with hundreds of failures the model sees the relevant ones.
+
+### FIM quirk: symlinks look world-writable
+
+The lab FIM data reports `/etc/systemd/system/multi-user.target.wants/wazuh-agent.service` with `perm: rwxrwxrwx`. It is a symlink (43 bytes, empty-file hashes) reported with `type: file`. The world-writable rule ignores the exact value `rwxrwxrwx` to avoid flagging every systemd link.
