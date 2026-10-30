@@ -5,7 +5,7 @@ This repository holds my work for the Wazuh Hub team's technical task. The task 
 | Phase | Topic | Where it lives |
 |---|---|---|
 | 1 | Get to know Wazuh: install a 4.x lab and explore it, without AI | [`PHASE1.md`](PHASE1.md), [`screenshots/`](screenshots/) |
-| 2 | Build a small piece of a SaaS service on top of Wazuh, with AI | [`app/`](app/), [`docs/`](docs/), [`PHASE2.md`](PHASE2.md) |
+| 2 | Build a small piece of a SaaS service on top of Wazuh, with AI | [`app/`](app/), [`docs/`](docs/), [`PHASE2.md`](PHASE2.md), [demo video](docs/demo/brief-demo.mp4) |
 | 3 | Present the work | Live conversation, [`docs/presentation/`](docs/presentation/) |
 
 ## Repository map
@@ -49,6 +49,8 @@ The work plan is in [`docs/plan.md`](docs/plan.md). The commit history shows how
 > "I have hundreds of failed CIS checks. What do I fix first?"
 
 A small FastAPI service that reads one agent's current posture through the **Wazuh server API** and returns a short, prioritized brief: the top five fixes, why each matters, the concrete remediation, the evidence, and a coverage note that says what the brief could not see. Claude writes the brief when `ANTHROPIC_API_KEY` is set. Otherwise, or if the model call fails, a deterministic rule-based summarizer produces the same response shape. Every response says which one ran.
+
+**▶ See it running:** [60-second demo video](docs/demo/brief-demo.mp4). It shows the page against the live lab, with a real Claude brief for an Ubuntu 24.04 agent. [What each part shows](docs/demo/README.md).
 
 ### Quickstart
 
