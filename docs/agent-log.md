@@ -332,3 +332,90 @@ The main session made these edits itself, from Dani's answers. No subagent was i
 - **The decisions table in Q1, corrected.** The Sonnet default came from Dani's plan. `LLM_PROVIDER` and designing for the empty SCA result were proposed by the main session and approved by Dani.
 - **OrbStack.** Dani knew it from Falco proofs of concept at Prowler: Falco only runs on Linux, and OrbStack was the easy way to get Linux VMs on a Mac. Added to `docs/workflow.md` and `docs/plan.md`.
 - **The Prowler Studio precedent.** It is a public repo, and Dani is a co-author of its Agent SDK rewrite (#83). It runs through the Agent SDK on each engineer's own Claude Code login, as developer tooling. Mapped to this repo in `docs/workflow.md` (new section) and referenced in ADR 0002 and in PHASE2.md Q1.
+
+---
+
+## 2026-10-30 — Entry 7: draw an in-dashboard assistant, restyle the page
+
+Two small follow-ups, approved by Dani, delegated to a subagent working in the Phase 2 and Phase 3 worktrees. This is the full prompt it received, unchanged.
+
+<details>
+<summary>Full prompt for the follow-ups subagent</summary>
+
+````text
+You're doing two small follow-ups on Dani's Wazuh Hub technical task, which Dani approved. Read `/Users/dani/Desktop/projects/wazuh-hub-task-phase2/CLAUDE.md` first and follow it.
+- Commits: small, conventional and signed, each ending with a blank line and then `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- Do not push and do not open PRs.
+- Never touch `PHASE1.md`, `screenshots/` or `lab/`.
+- `uv` needs `PATH="$HOME/.local/share/mise/shims:$HOME/.docker/bin:$PATH"`.
+
+There are two git worktrees. Work only in these, using absolute paths:
+- **Phase 2:** `/Users/dani/Desktop/projects/wazuh-hub-task-phase2`, branch `phase2/hardening-brief`. PR #1 is open, and CI must stay green.
+- **Phase 3:** `/Users/dani/Desktop/projects/wazuh-hub-task-phase3`, branch `phase3/presentation`. It contains the slide deck `docs/presentation/index.html`.
+
+## Task 1: draw an in-dashboard assistant (do not build it)
+The brief says: "If your tools do not let you set up something you would use, draw it and explain how you would set it up when you work on a SaaS team." We decided NOT to build a Wazuh dashboard plugin or a chatbot, because of time and scope. Instead, describe how it would be built.
+
+In the Phase 2 worktree, add a section "Next: an in-dashboard assistant" to `docs/saas-target.md`. Include:
+- A Mermaid diagram with a "side panel" plugin inside the Wazuh dashboard (an OpenSearch Dashboards plugin), a backend assistant service, and this service's endpoints.
+- How it would work:
+  - a Wazuh dashboard plugin that adds a side panel
+  - a chat backend that calls this service's existing endpoints as tools (`/agents`, `/agents/{id}/brief`; later, alerts from the indexer) instead of letting the model query Wazuh freely
+  - auth that reuses the dashboard session or user, mapped to a tenant
+  - the same fallback (rules when the model is down) and the same guardrails (read-only, minimal fields sent to the model, no raw logs)
+  - streaming answers
+  - feedback on each answer that feeds the eval set
+- Why it was not built now:
+  - the plugin must be built against the exact OpenSearch Dashboards version shipped in 4.14.9, which is a heavy toolchain
+  - a chat is a different product from a brief (conversation state, tool calling, guardrails)
+  - the time budget
+- A short phased rollout: (1) a link from the dashboard to this page, (2) a side panel showing the brief for the selected agent, (3) chat with tools.
+
+Mermaid must render. Validate it with `npx -y @mermaid-js/mermaid-cli@11.4.2` if available. Keep the existing style: plain, factual, tables where useful. Add a one-line pointer to the new section in PHASE2.md Q5, and keep everything else in PHASE2.md unchanged.
+
+Then, in the Phase 3 worktree, add the same idea in one or two lines to the "From slice to SaaS" slide (slide 21) or as a fourth item on "With one more day" (slide 22), whichever fits without overflowing. Add a speaker note.
+
+## Task 2: restyle the existing page
+In the Phase 2 worktree, restyle `app/src/wazuh_brief/templates/index.html` so it feels at home next to the Wazuh dashboard. The dashboard is built on OpenSearch Dashboards with the OUI/EUI design language: a light grey page, white panels with subtle borders, a top header bar, a compact agent table, a blue primary colour, status dots, and severity colours.
+- Do NOT use the Wazuh logo, the Wazuh name as a product title or brand, or any copied assets. Title it "Agent Hardening Brief". It may say "for Wazuh" in small text.
+- Keep it a single file with no build step and no external requests (no CDNs, no web fonts).
+- Keep every existing behaviour working:
+  - the agent list
+  - selecting an agent loads its brief
+  - showing `source`, `model`, `fallback_reason`, `stale` and the coverage confidence and note
+  - the error states (503, 404, 502)
+  - a loading state, important because the `claude-code` path can take 30–120 s
+- Improve the layout:
+  - the agent table shows id, name, OS, status and IP
+  - the brief panel shows the summary, then the fixes as cards (priority, title, why, remediation, evidence, category and severity badges), then the coverage panel
+- Read the JSON shape from `models.py` and `main.py`. Do not change the API.
+- Accessible: semantic HTML, keyboard selectable rows, sufficient contrast.
+- If tests assert on the HTML, update them. ruff and pytest must pass (83 tests or more).
+- Update the README only if something user-visible about the page changed.
+
+Visual check:
+- Run the server against the live lab with the mock provider: `LLM_PROVIDER=mock uv run uvicorn wazuh_brief.main:app --port 8010` from `app/` (`app/.env` exists). Make read-only calls only, and do not stop containers.
+- Screenshot the page with an agent selected, at 1440×900 and at 390×844 (mobile). Use Playwright from `/private/tmp/claude-501/-Users-dani-Desktop-projects/2d51aeda-5321-4186-85f4-5e00ff78b791/scratchpad/pw`, which has playwright installed. Save the shots in that same scratchpad folder.
+- Look at the shots and fix problems. Stop the server when done (kill only the process you started).
+
+Add an entry to `docs/agent-log.md` with this prompt verbatim in a `<details>` block.
+
+## Report back briefly
+- the commits on each branch
+- the screenshot paths
+- test count
+- anything not verified
+````
+
+</details>
+
+What the subagent did, and what it decided:
+
+| Item | What happened | Why |
+|---|---|---|
+| Assistant diagram | Added to `docs/saas-target.md` before the "today vs. target" table, plus a `Dashboard` row in that table. Rendered with `@mermaid-js/mermaid-cli` 11.4.2. | The page intro says the last table lists what exists, so it stays last. |
+| Slide | A `Dashboard` row on slide 21 and a speaker note, not a fourth card on slide 22. Checked at 1280×720: no slide overflows. | Slide 22 is "one more day"; a plugin and chat are not a one-day job. |
+| Severity badges | The `Fix` model has no severity field, and the API was not to change. Fix cards show the rank as a priority badge, coloured by rank (1–2 red, 3–4 amber, then grey), and a category badge. Confidence uses the same colours. | No severity was invented from data the API does not return. |
+| Source badge | The old page labelled any non-`claude` source as "mock summarizer", so `claude-code` briefs were mislabelled. It now shows `source · model`. | Small fix found while restyling. |
+| Test | `test_index_page` also asserts the page has no `http://` or `https://` URLs. | Guards the "no external requests" rule. |
+| Visual check | Live lab, mock provider, agent 001, at 1440×900 and 390×844, no horizontal scroll. The loading, 503, 404, 502 (auth) and stale states were checked by routing fake responses in Playwright, not by breaking the lab. | Read-only against the lab. |
