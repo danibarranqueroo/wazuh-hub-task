@@ -1,0 +1,281 @@
+{
+    "data": {
+        "affected_items": [
+            {
+                "description": "Removing support for unneeded filesystem types reduces the local attack surface of the server.",
+                "id": 35001,
+                "reason": "",
+                "command": "modprobe -n -v cramfs,lsmod",
+                "rationale": "Removing support for unneeded filesystem types reduces the local attack surface of the server. If this filesystem type is not needed, disable it.",
+                "condition": "all",
+                "title": "Ensure mounting of cramfs filesystems is disabled.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "1) Edit or create a file in the /etc/modprobe.d/ directory ending in .conf and add the following line: install cramfs /bin/true. 2) Run the following command to unload the cramfs module: # rmmod cramfs",
+                "compliance": [
+                    {
+                        "value": "1.1.1.1",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "command",
+                        "rule": "c:modprobe -n -v cramfs -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "By monitoring the filesystem state compromised files can be detected to prevent or limit the exposure of accidental or malicious misconfigurations or modified binaries.",
+                "id": 35020,
+                "reason": "",
+                "command": "dpkg-query -s aide",
+                "rationale": "By monitoring the filesystem state compromised files can be detected to prevent or limit the exposure of accidental or malicious misconfigurations or modified binaries.",
+                "condition": "all",
+                "title": "Ensure AIDE is installed.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Install AIDE: # apt install aide aide-common. Initialize it: # aideinit && mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db",
+                "compliance": [
+                    {
+                        "value": "1.3.1",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "command",
+                        "rule": "c:dpkg-query -s aide -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "A host based firewall limits the network services reachable from other hosts.",
+                "id": 35045,
+                "reason": "",
+                "command": "ufw status",
+                "rationale": "A host based firewall limits the network services reachable from other hosts. Without it every listening service is exposed to the network.",
+                "condition": "all",
+                "title": "Ensure a single firewall configuration utility is in use and ufw is enabled.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Run: # apt install ufw && ufw allow proto tcp from <admin-net> to any port 22 && ufw enable",
+                "compliance": [
+                    {
+                        "value": "4.1.1",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    },
+                    {
+                        "value": "T1190",
+                        "key": "mitre_techniques"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "command",
+                        "rule": "c:ufw status -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "Disallowing root logins over SSH requires administrators to authenticate with their own account, which provides an audit trail and blocks direct brute force against root.",
+                "id": 35080,
+                "reason": "",
+                "command": "sshd -T",
+                "rationale": "Disallowing root logins over SSH requires administrators to authenticate with their own account, which provides an audit trail and blocks direct brute force against root.",
+                "condition": "all",
+                "title": "Ensure sshd PermitRootLogin is disabled.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Edit /etc/ssh/sshd_config and set: PermitRootLogin no. Then run: # systemctl reload ssh",
+                "compliance": [
+                    {
+                        "value": "5.1.20",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    },
+                    {
+                        "value": "T1078,T1110",
+                        "key": "mitre_techniques"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "command",
+                        "rule": "c:sshd -T -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "Password authentication over SSH is exposed to brute force and credential stuffing.",
+                "id": 35081,
+                "reason": "",
+                "command": "sshd -T",
+                "rationale": "Password authentication over SSH is exposed to brute force and credential stuffing. Key-based authentication removes that attack path.",
+                "condition": "all",
+                "title": "Ensure sshd PasswordAuthentication is disabled.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Edit /etc/ssh/sshd_config and set: PasswordAuthentication no. Make sure every admin has a key first. Then run: # systemctl reload ssh",
+                "compliance": [
+                    {
+                        "value": "5.1.12",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    },
+                    {
+                        "value": "T1110",
+                        "key": "mitre_techniques"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "command",
+                        "rule": "c:sshd -T -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "Limiting authentication attempts per connection slows down brute force attacks against SSH.",
+                "id": 35082,
+                "reason": "",
+                "command": "sshd -T",
+                "rationale": "Limiting authentication attempts per connection slows down brute force attacks against SSH.",
+                "condition": "all",
+                "title": "Ensure sshd MaxAuthTries is configured.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Edit /etc/ssh/sshd_config and set: MaxAuthTries 4. Then run: # systemctl reload ssh",
+                "compliance": [
+                    {
+                        "value": "5.1.16",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    },
+                    {
+                        "value": "T1110",
+                        "key": "mitre_techniques"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "command",
+                        "rule": "c:sshd -T -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "auditd records security-relevant events such as changes to users, sudoers and kernel modules.",
+                "id": 35110,
+                "reason": "",
+                "command": "dpkg-query -s auditd",
+                "rationale": "auditd records security-relevant events such as changes to users, sudoers and kernel modules. Without it there is little to investigate after an incident.",
+                "condition": "all",
+                "title": "Ensure auditd is installed.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Run: # apt install auditd audispd-plugins && systemctl enable --now auditd",
+                "compliance": [
+                    {
+                        "value": "6.3.1.1",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "command",
+                        "rule": "c:dpkg-query -s auditd -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "The /etc/shadow file stores password hashes.",
+                "id": 35140,
+                "reason": "",
+                "rationale": "The /etc/shadow file stores password hashes. If it is readable by non-root users, hashes can be copied and cracked offline.",
+                "condition": "all",
+                "title": "Ensure permissions on /etc/shadow are configured.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Run: # chown root:shadow /etc/shadow && chmod u-x,g-wx,o-rwx /etc/shadow",
+                "compliance": [
+                    {
+                        "value": "7.1.5",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    },
+                    {
+                        "value": "T1003.008",
+                        "key": "mitre_techniques"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "file",
+                        "rule": "f:/etc/shadow -> r:."
+                    }
+                ]
+            },
+            {
+                "description": "A dedicated sudo log makes privilege use easy to review.",
+                "id": 35160,
+                "reason": "",
+                "rationale": "A dedicated sudo log makes privilege use easy to review.",
+                "condition": "all",
+                "title": "Ensure sudo log file exists.",
+                "result": "failed",
+                "policy_id": "cis_ubuntu24-04",
+                "remediation": "Add 'Defaults logfile=\"/var/log/sudo.log\"' to a file in /etc/sudoers.d/ using visudo -f.",
+                "compliance": [
+                    {
+                        "value": "5.2.3",
+                        "key": "cis"
+                    },
+                    {
+                        "value": "5.1",
+                        "key": "cis_csc"
+                    }
+                ],
+                "rules": [
+                    {
+                        "type": "file",
+                        "rule": "f:/etc/shadow -> r:."
+                    }
+                ]
+            }
+        ],
+        "total_affected_items": 87,
+        "total_failed_items": 0,
+        "failed_items": []
+    },
+    "message": "All selected SCA/policy information was returned",
+    "error": 0
+}

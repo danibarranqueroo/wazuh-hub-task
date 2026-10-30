@@ -1,0 +1,55 @@
+{
+    "data": {
+        "affected_items": [
+            {
+                "local": {
+                    "ip": "0.0.0.0",
+                    "port": 22
+                },
+                "remote": {
+                    "ip": "0.0.0.0",
+                    "port": 0
+                },
+                "scan": {
+                    "id": 0,
+                    "time": "2026-10-29T12:05:00+00:00"
+                },
+                "pid": 812,
+                "tx_queue": 0,
+                "protocol": "tcp",
+                "inode": 18459,
+                "rx_queue": 0,
+                "state": "listening",
+                "process": "sshd",
+                "agent_id": "002"
+            },
+            {
+                "local": {
+                    "ip": "127.0.0.1",
+                    "port": 5432
+                },
+                "remote": {
+                    "ip": "0.0.0.0",
+                    "port": 0
+                },
+                "scan": {
+                    "id": 0,
+                    "time": "2026-10-29T12:05:00+00:00"
+                },
+                "pid": 990,
+                "tx_queue": 0,
+                "protocol": "tcp",
+                "inode": 18500,
+                "rx_queue": 0,
+                "state": "listening",
+                "process": "postgres",
+                "agent_id": "002"
+            }
+        ],
+        "total_affected_items": 2,
+        "total_failed_items": 0,
+        "failed_items": []
+    },
+    "message": "All specified syscollector information was returned",
+    "error": 0
+}

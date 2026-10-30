@@ -1,0 +1,129 @@
+{
+    "agent": {
+        "id": "002",
+        "name": "ubuntu-noble",
+        "status": "active",
+        "os": "Ubuntu 24.04.5 LTS",
+        "ip": "FD07:B51A:CC66:0000:C828:7BFF:FE33:E773",
+        "wazuh_version": "Wazuh v4.14.9"
+    },
+    "generated_at": "2026-10-30T14:39:22.660096Z",
+    "source": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "fallback_reason": null,
+    "stale": false,
+    "summary": "ubuntu-noble (Ubuntu 24.04.5 LTS) scores 51% on the CIS Ubuntu 24.04 benchmark (104 passed, 98 failed). No listening ports were reported, so there is no remote service exposure in the data. The most important problems are that no host firewall is active, SSH config and key file permissions are wrong, and there is no brute-force lockout. After that come missing audit logging and file integrity tooling, and permissions on cron and password files. The many partition and mount-option failures are low priority on an existing install.",
+    "fixes": [
+        {
+            "rank": 1,
+            "title": "Set up one host firewall (ufw) with default deny",
+            "category": "sca",
+            "why": "Several firewall checks fail at once: ufw is not enabled, there is no default deny policy, and the checks show no single firewall utility in use. Without a host firewall, any service started later is reachable by default. No ports are listening now, so this is a safeguard rather than a current exposure. nftables, ufw and iptables checks conflict, so pick one tool (ufw) and remove the others rather than satisfying every check.",
+            "remediation": "Allow SSH first if the host is managed remotely (ufw allow 22/tcp), then: apt install ufw; apt purge iptables-persistent; systemctl unmask ufw.service; systemctl --now enable ufw.service; ufw allow in on lo; ufw allow out on lo; ufw deny in from 127.0.0.0/8; ufw deny in from ::1; ufw default deny incoming; ufw default deny outgoing; ufw default deny routed; ufw enable. Note that default deny outgoing needs explicit allow rules for DNS, apt and the Wazuh agent (1514/1515 to the manager) or the agent will lose contact. Do not install nftables or iptables-persistent as well: checks 35625, 35631 and 35633 conflict with 35634 and 35635 and cannot all pass, so treat them as not applicable once ufw is chosen.",
+            "evidence": [
+                "SCA 35619 (CIS 4.1.1)",
+                "SCA 35620 (CIS 4.2.1)",
+                "SCA 35622 (CIS 4.2.3)",
+                "SCA 35623 (CIS 4.2.4)",
+                "SCA 35624 (CIS 4.2.7)",
+                "SCA 35621 (CIS 4.2.2)",
+                "SCA 35634 (CIS 4.4.1.2)",
+                "SCA 35635 (CIS 4.4.1.3)",
+                "SCA 35625, 35631, 35633"
+            ],
+            "references": [
+                "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 sections 4.1-4.4",
+                "MITRE T1562.004"
+            ]
+        },
+        {
+            "rank": 2,
+            "title": "Lock down SSH configuration and host key permissions",
+            "category": "sca",
+            "why": "The sshd configuration and the host private and public keys have incorrect permissions. A readable private host key lets someone impersonate the host, and a writable config or public key lets an unprivileged user alter SSH behaviour.",
+            "remediation": "chmod u-x,og-rwx /etc/ssh/sshd_config; chown root:root /etc/ssh/sshd_config; for f in /etc/ssh/sshd_config.d/*.conf; do chmod u-x,og-rwx \"$f\"; chown root:root \"$f\"; done; chmod 600 /etc/ssh/ssh_host_*_key; chown root:root /etc/ssh/ssh_host_*_key; chmod 644 /etc/ssh/ssh_host_*_key.pub; chown root:root /etc/ssh/ssh_host_*_key.pub. If the private keys are group ssh_keys, mode 640 is the maximum allowed. If a private key may have been readable by other users, regenerate the host keys.",
+            "evidence": [
+                "SCA 35640 (CIS 5.1.1)",
+                "SCA 35641 (CIS 5.1.2)",
+                "SCA 35642 (CIS 5.1.3)"
+            ],
+            "references": [
+                "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 section 5.1",
+                "MITRE T1552.004"
+            ]
+        },
+        {
+            "rank": 3,
+            "title": "Enforce account lockout, password history and password aging",
+            "category": "sca",
+            "why": "Authentication weaknesses make brute-force and credential-reuse attacks easier. There is no failed-attempt lockout (including for root), no unlock time, no password history, and password aging and inactivity limits are not set.",
+            "remediation": "In /etc/security/faillock.conf set: deny = 5, unlock_time = 900, even_deny_root, and remove any root_unlock_time line. Remove deny, unlock_time, even_deny_root and root_unlock_time arguments from pam_faillock.so lines in /usr/share/pam-configs/*. In the pam_pwhistory line in /usr/share/pam-configs/* use: remember=24 enforce_for_root try_first_pass use_authtok. In /etc/login.defs set PASS_MAX_DAYS 365, PASS_MIN_DAYS 1, PASS_WARN_AGE 7, then apply to existing users with chage --maxdays 365 --mindays 1 --warndays 7 --inactive 45 <user> and run useradd -D -f 45. Run pam-auth-update afterwards. Keep a root session open while testing, since even_deny_root can lock out root.",
+            "evidence": [
+                "SCA 35676 (CIS 5.3.3.1.1)",
+                "SCA 35677 (CIS 5.3.3.1.2)",
+                "SCA 35678 (CIS 5.3.3.1.3)",
+                "SCA 35687 (CIS 5.3.3.3.1)",
+                "SCA 35688 (CIS 5.3.3.3.2)",
+                "SCA 35694 (CIS 5.4.1.1)",
+                "SCA 35695 (CIS 5.4.1.2)",
+                "SCA 35696 (CIS 5.4.1.3)",
+                "SCA 35698 (CIS 5.4.1.5)"
+            ],
+            "references": [
+                "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 sections 5.3 and 5.4",
+                "MITRE T1110"
+            ]
+        },
+        {
+            "rank": 4,
+            "title": "Restore audit trail: auditd, sudo log, remote journal upload, AIDE",
+            "category": "sca",
+            "why": "auditd is not installed or active, there is no sudo log file, journal upload authentication is not configured, and AIDE is not installed or scheduled. Together this means little record of privileged activity, and local logs could be altered without detection. Audit tool ownership also fails, which allows tampering with the audit tools.",
+            "remediation": "apt install auditd audispd-plugins aide aide-common; systemctl unmask auditd; systemctl enable --now auditd; chown root:root /sbin/auditctl /sbin/aureport /sbin/ausearch /sbin/autrace /sbin/auditd /sbin/augenrules; aideinit; mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db; systemctl unmask dailyaidecheck.timer dailyaidecheck.service; systemctl --now enable dailyaidecheck.timer. Add 'Defaults logfile=\"/var/log/sudo.log\"' using visudo -f /etc/sudoers.d/01_logfile. Configure /etc/systemd/journal-upload.conf with URL, ServerKeyFile, ServerCertificateFile and TrustedCertificateFile only if journald is the logging method and a log server exists.",
+            "evidence": [
+                "SCA 35723 (CIS 6.2.1.1)",
+                "SCA 35724 (CIS 6.2.1.2)",
+                "SCA 35756 (CIS 6.2.4.9)",
+                "SCA 35757 (CIS 6.2.4.10)",
+                "SCA 35664 (CIS 5.2.3)",
+                "SCA 35710 (CIS 6.1.2.1.2)",
+                "SCA 35758 (CIS 6.3.1)",
+                "SCA 35759 (CIS 6.3.2)"
+            ],
+            "references": [
+                "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 sections 5.2, 6.1-6.3",
+                "MITRE T1562.001, T1070.002"
+            ]
+        },
+        {
+            "rank": 5,
+            "title": "Fix permissions on cron paths, /etc/security/opasswd and root umask",
+            "category": "sca",
+            "why": "Cron files and directories are accessible to non-root users, which can reveal scheduled jobs or allow privilege escalation if writable. /etc/security/opasswd holds old password hashes. A permissive root umask creates over-shared files. These are quick to fix and low risk.",
+            "remediation": "chown root:root /etc/crontab /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /etc/cron.d; chmod og-rwx /etc/crontab /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /etc/cron.d; chmod u-x,go-rwx /etc/security/opasswd; chown root:root /etc/security/opasswd (and the same for /etc/security/opasswd.old if present). Edit /root/.bash_profile and /root/.bashrc so any umask line is 0027 or stricter.",
+            "evidence": [
+                "SCA 35594, 35595, 35596, 35597, 35598, 35599 (CIS 2.4.1.2-2.4.1.7)",
+                "SCA 35770 (CIS 7.1.10)",
+                "SCA 35703 (CIS 5.4.2.6)"
+            ],
+            "references": [
+                "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 sections 2.4.1, 5.4.2, 7.1",
+                "MITRE T1053.003, T1003.008"
+            ]
+        }
+    ],
+    "coverage": {
+        "confidence": "high",
+        "note": "This brief is based on the CIS Ubuntu 24.04 SCA results (98 failed checks, of which only the 60 highest-weighted were considered for ranking), FIM metadata, and the listening-port list (empty). FIM data is a baseline only: none of the recent files has changed since first indexed, so it shows no tampering either way. The rwxrwxrwx entries in the FIM list are symbolic links and are not reported as world-writable files. Alerts and vulnerability detection were not available, because the service reads only the server API and not the indexer, so unpatched packages and active detections are not assessed. The many failed partition and mount-option checks (/tmp, /dev/shm, /home, /var, /var/tmp, /var/log, /var/log/audit; CIS 1.1.2.x) were left out of the top five: they are hardening for new installs and hard to change on a running host.",
+        "sca_policies": 1,
+        "sca_failed_checks_total": 98,
+        "sca_failed_checks_considered": 60,
+        "fim_entries_considered": 20,
+        "listening_ports_considered": 0,
+        "gaps": [
+            "98 SCA checks failed; the 60 highest-weighted were considered for ranking.",
+            "File integrity data is a baseline only: none of the most recently modified files has changed since FIM first indexed it.",
+            "Alerts and vulnerability detection are not included: the service reads the server API only, not the indexer."
+        ]
+    }
+}
