@@ -666,9 +666,8 @@
     <div class="f1 col" style="gap:18px">
       <p style="font-size:40px; font-weight:700; line-height:1.15; margin:0">“Not checked”<br><span class="accent">is not “compliant”</span></p>
       <ul class="clean">
-        <li>Confidence <span class="pill warn">low</span></li>
-        <li>Fix 1: restore SCA coverage</li>
-        <li>Gap names the policy and the OS mismatch</li>
+        <li>001 (26.04): confidence <span class="pill warn">low</span>, fix 1 is restore SCA</li>
+        <li>002 (24.04): <code>cis_ubuntu24-04</code>, 98 failed, confidence <span class="pill ok">high</span></li>
       </ul>
     </div>
   </div>
@@ -676,7 +675,7 @@
     <li>Wazuh 4.14.9 ships no CIS policy for Ubuntu 26.04. The agent is configured with the 22.04 policy and skips it.</li>
     <li>An empty list could look like a clean bill of health. The brief says the opposite, by rule, not by the model.</li>
     <li>The wmodules call is what proves the cause: it shows which policy files the agent is configured with.</li>
-    <li>The SCA path itself is tested with fixtures synthesized from the API reference.</li>
+    <li>To prove it, I added agent 002 on Ubuntu 24.04, which has a bundled policy: same agent version, real CIS scan, 98 failed / 104 passed, high confidence. Example in docs/examples, recording in docs/demo.</li>
   </ul></aside>
 </section>
 
@@ -738,17 +737,17 @@
     <div class="card f1">
       <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0"><code>/usr/bin/sh</code> world-writable?</h3><span class="pill ok">fixed</span></div>
       <p style="margin-top:16px">A symlink. Wazuh reports links as <code>rwxrwxrwx</code>.</p>
-      <p class="small muted" style="margin:0">Fix in <code>04463ee</code>: mark likely symlinks in the input, plus one prompt rule.</p>
+      <p class="small muted" style="margin:0">Fix in <code>04463ee</code>: mark likely symlinks in the input. Confirmed live on agent 002.</p>
     </div>
     <div class="card f1">
       <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Baseline read as changes</h3><span class="pill warn">open</span></div>
       <p style="margin-top:16px">On 001 the model treated first-scan FIM dates as recent changes.</p>
-      <p class="small muted" style="margin:0">Its own coverage note said FIM is a baseline only.</p>
+      <p class="small muted" style="margin:0">One later run on 002 got it right. One good run is not a fix.</p>
     </div>
   </div>
   <p class="small" style="margin:18px 0 0">Both came from <b>reading real output</b>, not from tests. <span class="muted">Future: each becomes an eval case.</span></p>
   <aside class="notes"><ul>
-    <li>The model hedged on /usr/bin/sh ("may just be a symlink") but still ranked it. Fixed the input, not the output.</li>
+    <li>The model hedged on /usr/bin/sh ("may just be a symlink") but still ranked it. Fixed the input, not the output. On 002 every FIM entry is a symlink under /etc/alternatives, and the brief now treats them as links.</li>
     <li>The open one: "verify the account-file changes from 11:40 UTC" while FIM was a baseline. Not fixed yet, and I say so.</li>
     <li>That is why I want an eval set: real BriefInput plus a checkable property.</li>
   </ul></aside>
@@ -784,16 +783,16 @@
   <div class="grow" style="display:flex;align-items:center">
     <div class="tiles" style="width:100%">
       <div class="tile"><div class="num">83</div><div class="lbl">tests passing</div><div class="sub">none needs the lab, a key or a login</div></div>
-      <div class="tile"><div class="num">28</div><div class="lbl">commits</div><div class="sub">on <code>phase2/hardening-brief</code>, signed</div></div>
+      <div class="tile"><div class="num">32</div><div class="lbl">commits</div><div class="sub">on <code>phase2/hardening-brief</code>, signed</div></div>
       <div class="tile"><div class="num">2</div><div class="lbl">ADRs</div><div class="sub">stack and shape · dev-only SDK path</div></div>
       <div class="tile"><div class="num" style="color:var(--ok)">Green</div><div class="lbl">CI on PR #1</div><div class="sub">ruff and pytest on every push</div></div>
       <div class="tile"><div class="num">2</div><div class="lbl">subagents</div><div class="sub">reviewer · docs-keeper</div></div>
-      <div class="tile"><div class="num">2</div><div class="lbl">real example briefs</div><div class="sub">claude-code vs. mock, agent 000</div></div>
+      <div class="tile"><div class="num">4</div><div class="lbl">real example briefs</div><div class="sub">claude-code vs. mock, agents 000 and 002</div></div>
     </div>
   </div>
   <aside class="notes"><ul>
     <li>83 tests from uv run pytest on 2026-10-29; HTTP mocked with respx, model clients replaced with fakes.</li>
-    <li>28 commits on the Phase 2 branch, one logical change each, docs in the same commit as code.</li>
+    <li>32 commits on the Phase 2 branch, one logical change each, docs in the same commit as code.</li>
     <li>CI runs ruff and pytest on every push and PR to PR #1. Check the latest run before presenting.</li>
   </ul></aside>
 </section>
