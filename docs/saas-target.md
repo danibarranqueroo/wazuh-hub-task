@@ -106,6 +106,53 @@ flowchart LR
 - **Staging** with a seeded Wazuh: the `wazuh-docker` stack plus agents on known OS versions (one with a CIS policy, one without, to keep the no-SCA path honest), reset on every deploy.
 - **CI/CD:** today's lint and test job, plus a container build, the eval run, and a deploy to a **preview environment** per pull request, pointed at the staging Wazuh. Merging to `main` deploys to staging, then production after checks pass, with one-click rollback to the previous image.
 
+## Next: an in-dashboard assistant
+
+**Drawn, not built.** Users already live in the Wazuh dashboard, so the brief should eventually be there too, with a chat on top of it. This is how I would build it.
+
+```mermaid
+flowchart LR
+    subgraph dash["Wazuh dashboard (OpenSearch Dashboards)"]
+        page["Agents page"]
+        panel["Side panel plugin<br/>brief + chat"]
+        page --> panel
+    end
+    panel -- "dashboard session<br/>(user, tenant)" --> chat["Assistant service<br/>chat backend"]
+    chat --> llm["Claude API<br/>tool calling, streaming"]
+    chat -. "model down" .-> rules["Rule-based answers<br/>(today's mock)"]
+    chat -- "tools" --> api["Brief API<br/>(this service)"]
+    api --> e1["GET /agents"]
+    api --> e2["GET /agents/{id}/brief"]
+    api -.-> e3["later: alerts<br/>from the indexer"]
+    panel -- "thumbs up / down" --> fb[("Feedback<br/>feeds the eval set")]
+```
+
+### How it would work
+
+| Part | Design |
+|---|---|
+| Dashboard plugin | An OpenSearch Dashboards plugin that adds a side panel to the agent views. It knows the selected agent and shows its brief, then a chat box under it. |
+| Chat backend | A separate assistant service. The model gets this service's existing endpoints as tools (`/agents`, `/agents/{id}/brief`; later, alerts from the indexer) and nothing else. It does not query Wazuh or the indexer freely. |
+| Auth | Reuse the dashboard session: the plugin forwards the logged-in user, the backend checks it against the dashboard's security plugin and maps it to a tenant. No second login, no credentials in the browser. |
+| Fallback | The same as today: when the model is down or rate limited, answer with the rule-computed brief and say so (`source`, `fallback_reason`). |
+| Guardrails | The same as today: read-only tools only, minimal fields sent to the model, no raw logs, no credentials. The tools return the same small payloads the brief already uses. |
+| Streaming | Answers stream to the panel token by token (server-sent events), so a slow model shows progress instead of a spinner. |
+| Feedback | Thumbs up / down on every answer, stored with the prompt version and the tool calls made, and triaged into the eval set (see [Prompt quality](#prompt-quality)). |
+
+### Why it was not built now
+
+- **Toolchain.** A dashboard plugin must be built against the exact OpenSearch Dashboards version shipped in Wazuh 4.14.9, with its Node and build tooling. That is a heavy setup for a small task.
+- **A different product.** A chat is not a brief: it needs conversation state, tool calling, and guardrails on every turn, not just on one structured output.
+- **Time.** The time budget went to a working, tested brief on real lab data.
+
+### Rollout
+
+| Step | What ships | What it needs |
+|---|---|---|
+| 1 | A link from the dashboard to this page, with the agent ID in the URL | A dashboard menu link; no plugin |
+| 2 | A side panel that shows the brief for the selected agent | The plugin, read-only, calling `/agents/{id}/brief` |
+| 3 | Chat with tools in the same panel | The assistant service, streaming, feedback |
+
 ## What exists today vs. target
 
 | Area | Today (in this repo) | Target |
@@ -121,4 +168,5 @@ flowchart LR
 | Feedback | None | Thumbs up/down per brief, stored with the prompt version |
 | Environments | Local lab | Staging with a seeded Wazuh, preview environments per PR |
 | CI/CD | GitHub Actions: ruff and pytest | Plus image build, evals, deploys, rollback |
+| Dashboard | Standalone page at `/` | Side panel plugin in the Wazuh dashboard, then chat with tools |
 | Docs | `CLAUDE.md` docs rule, `docs-keeper` agent, ADRs | Plus a CI docs check and a published OpenAPI contract |

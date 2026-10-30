@@ -9,6 +9,7 @@ A small service on top of my Wazuh lab. `GET /agents/{id}/brief` reads one agent
 | Run it | [README quickstart](README.md#quickstart) |
 | How it fits together | [`docs/architecture.md`](docs/architecture.md) |
 | Real output, model vs. rules | [`docs/examples/`](docs/examples/) |
+| See it running (60 s video) | [`docs/demo/`](docs/demo/) |
 | Decisions | [ADR 0001](docs/adr/0001-phase2-stack-and-shape.md), [ADR 0002](docs/adr/0002-dev-only-agent-sdk-summarizer.md) |
 | How the AI agents were directed | [`docs/agent-log.md`](docs/agent-log.md), [`docs/workflow.md`](docs/workflow.md) |
 
@@ -38,8 +39,8 @@ A small service on top of my Wazuh lab. `GET /agents/{id}/brief` reads one agent
 
 **What review caught.** Both came from reading real output, not from tests:
 
-- The model flagged `/usr/bin/sh` as a world-writable shell. It is a symlink, and Wazuh reports links as `rwxrwxrwx`. Fixed in `04463ee` by marking likely symlinks in the model input.
-- On agent `001` the model read the dates from FIM's first scan as recent changes ("verify the account-file changes from 11:40 UTC"), although its own coverage note said FIM is a baseline only. **Still open.**
+- The model flagged `/usr/bin/sh` as a world-writable shell. It is a symlink, and Wazuh reports links as `rwxrwxrwx`. Fixed in `04463ee` by marking likely symlinks in the model input. Confirmed on live data: agent `002`'s FIM list is all symlinks, and the brief treats them as links ([example](docs/examples/README.md#agent-002-a-real-endpoint-with-full-sca-coverage)).
+- On agent `001` the model read the dates from FIM's first scan as recent changes ("verify the account-file changes from 11:40 UTC"), although its own coverage note said FIM is a baseline only. **Still open.** One later run on agent `002` described the baseline correctly, but one good run does not prove a fix.
 
 **AI in Phase 1.** I installed the lab by following the Wazuh docs, and I wrote [`PHASE1.md`](PHASE1.md) myself. In Phase 1, I used AI only to get past three problems I could not solve from the docs:
 
@@ -98,6 +99,7 @@ The target is drawn in [`docs/saas-target.md`](docs/saas-target.md). The parts t
 - **One contract.** FastAPI already generates the OpenAPI schema from the pydantic models (`/openapi.json`, `/docs`). I'd publish it and check changes to it in CI, so the UI and other services build against the same contract.
 - **ADRs for every decision that crosses a module**, like the two in [`docs/adr/`](docs/adr/), so new people (and agents) know why things are the way they are.
 - **The same pattern for every AI feature:** compute the facts by rule, send the model a small payload, validate its output, keep a deterministic fallback, and record `source`.
+- **The next feature, drawn:** an assistant in a Wazuh dashboard side panel that uses this service's endpoints as tools. See [Next: an in-dashboard assistant](docs/saas-target.md#next-an-in-dashboard-assistant).
 
 ## 6. How would you document it, and how would you make sure every change is backed by up-to-date documentation?
 

@@ -31,7 +31,8 @@ This repository holds my work for the Wazuh Hub team's technical task. The task 
     ├── runbook.md           # Symptoms, checks and actions when something fails
     ├── agent-log.md         # How I directed AI agents, dated
     ├── adr/                 # Architecture decision records
-    ├── examples/            # Real briefs: claude-code vs mock for the same agent
+    ├── examples/            # Real briefs: claude-code vs mock, agents 000 and 002
+    ├── demo/                # 60-second screen recording of the page against the lab
     └── presentation/        # Phase 3: offline HTML slide deck and live demo script
 ```
 
@@ -73,7 +74,7 @@ claude auth status                   # you must already be logged in to Claude C
 LLM_PROVIDER=claude-code uv run uvicorn wazuh_brief.main:app --port 8000
 ```
 
-Responses then say `"source": "claude-code"`. If the SDK is missing, the CLI is not found, you are not logged in, the call times out or the reply is not valid JSON, the brief falls back to the mock and `fallback_reason` says why. [`docs/examples/`](docs/examples/) has a real `claude-code` brief next to the mock brief for the same agent.
+Responses then say `"source": "claude-code"`. If the SDK is missing, the CLI is not found, you are not logged in, the call times out or the reply is not valid JSON, the brief falls back to the mock and `fallback_reason` says why. [`docs/examples/`](docs/examples/) has real `claude-code` briefs next to mock briefs for the same agents, and [`docs/demo/`](docs/demo/) has a 60-second recording of the page.
 
 Tests and lint need neither the lab nor an API key:
 
@@ -105,7 +106,7 @@ All settings come from environment variables or `app/.env` (gitignored). [`app/.
 
 | Method and path | Returns |
 |---|---|
-| `GET /` | The single HTML page: agent list on the left, brief on the right |
+| `GET /` | The single HTML page, styled to sit next to the Wazuh dashboard: an agent table (ID, name, OS, status, IP) on the left, the brief on the right (summary, fix cards, coverage). Stacks on narrow screens. No external requests. |
 | `GET /agents` | Agents known to the manager. Agent `000` (the manager itself) is hidden; add `?include_manager=true` to see it. |
 | `GET /agents/{id}/brief` | The brief for one agent (`id` is the 3-5 digit Wazuh agent ID) |
 | `GET /healthz` | `{"status": "ok"}` if the process is up. Does not call Wazuh. |

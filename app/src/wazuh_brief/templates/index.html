@@ -5,127 +5,400 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Agent Hardening Brief</title>
   <style>
+    /* Light grey page, white panels, blue primary: the OUI/EUI look of the Wazuh dashboard.
+       No external requests: system fonts only, no images, no CDN. */
     :root {
-      --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e2e2dc;
-      --accent: #2856c7; --warn-bg: #fff4e0; --warn: #8a5300; --bad: #a32020;
+      --page: #f5f7fa; --panel: #ffffff; --header: #ffffff; --line: #d3dae6; --line-soft: #e9edf3;
+      --text: #343741; --title: #1a1c21; --muted: #646a77; --row-hover: #f1f4fa; --row-sel: #e6f1fa;
+      --primary: #006bb8; --primary-bg: #e6f1fa; --focus: #0077cc;
+      --ok: #017d73; --ok-bg: #e6f2f1; --ok-dot: #00a69b;
+      --warn: #825803; --warn-bg: #fef6e6; --warn-dot: #f5a700;
+      --danger: #bd271e; --danger-bg: #f8e9e9; --danger-dot: #e7664c;
+      --neutral-bg: #eef1f6; --neutral-dot: #98a2b3;
+      --code-bg: #f5f7fa;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 2px 6px rgba(0, 0, 0, .04);
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #161615; --panel: #1f1f1d; --text: #ececea; --muted: #a0a09a; --line: #34342f;
-        --accent: #7aa2ff; --warn-bg: #3a2c12; --warn: #f2c26b; --bad: #ff8a8a;
+        --page: #141519; --panel: #1d1e24; --header: #1d1e24; --line: #343741; --line-soft: #2a2c33;
+        --text: #dfe5ef; --title: #f5f7fa; --muted: #a2abba; --row-hover: #25272e; --row-sel: #1b3348;
+        --primary: #4ca8e9; --primary-bg: #1b3348; --focus: #4ca8e9;
+        --ok: #7dded8; --ok-bg: #18322f; --ok-dot: #00bfb3;
+        --warn: #ffce7a; --warn-bg: #3a2e14; --warn-dot: #f5a700;
+        --danger: #f6a29b; --danger-bg: #3d1f1d; --danger-dot: #f86b63;
+        --neutral-bg: #2a2c33; --neutral-dot: #7a8191;
+        --code-bg: #25272e;
+        --shadow: none;
       }
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text);
-           font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-    header { padding: 20px 16px 8px; max-width: 1100px; margin: 0 auto; }
-    header h1 { margin: 0; font-size: 20px; }
-    header p { margin: 4px 0 0; color: var(--muted); }
-    main { display: grid; grid-template-columns: 260px 1fr; gap: 16px;
-           max-width: 1100px; margin: 0 auto; padding: 16px; }
-    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
-    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
-    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
-    #agents button { display: block; width: 100%; text-align: left; background: none; color: inherit;
-                     border: 1px solid transparent; border-radius: 6px; padding: 8px; cursor: pointer; font: inherit; }
-    #agents button:hover { border-color: var(--line); }
-    #agents button[aria-current="true"] { border-color: var(--accent); }
-    .sub { color: var(--muted); font-size: 13px; }
-    .badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px;
-             border: 1px solid var(--line); color: var(--muted); margin-right: 6px; }
-    .badge.stale, .badge.low { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
-    ol.fixes { padding-left: 22px; margin: 0; }
-    ol.fixes li { margin: 0 0 16px; }
-    ol.fixes h3 { font-size: 16px; margin: 0 0 4px; }
-    .label { font-weight: 600; }
-    code, .evidence { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
-    .evidence { color: var(--muted); margin: 4px 0 0; padding-left: 18px; }
-    .coverage { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 10px 12px; margin: 12px 0; }
-    .coverage ul { margin: 6px 0 0; padding-left: 18px; }
-    .error { color: var(--bad); }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--page); color: var(--text);
+           font: 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+    .muted { color: var(--muted); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    /* Header bar */
+    .topbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px;
+              height: 48px; padding: 0 16px; background: var(--header); border-bottom: 1px solid var(--line);
+              box-shadow: var(--shadow); }
+    .mark { width: 24px; height: 24px; border-radius: 6px; background: var(--primary); position: relative; flex: none; }
+    .mark::after { content: ""; position: absolute; inset: 6px 7px; border: 2px solid #fff; border-top-width: 5px; border-radius: 2px 2px 6px 6px; }
+    .topbar h1 { margin: 0; font-size: 16px; font-weight: 600; color: var(--title); white-space: nowrap; }
+    .topbar .for { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    @media (max-width: 480px) { .crumbs { display: none; } }
+    .crumbs { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Layout */
+    main { display: grid; grid-template-columns: minmax(460px, 620px) minmax(0, 1fr); gap: 16px; align-items: start;
+           max-width: 1440px; margin: 0 auto; padding: 16px; }
+    @media (max-width: 980px) { main { grid-template-columns: minmax(0, 1fr); } }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); min-width: 0; }
+    .panel-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line-soft); }
+    .panel-head h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--title); }
+    .panel-body { padding: 16px; }
+    .count { font-size: 12px; color: var(--muted); }
+    .btn { margin-left: auto; font: inherit; font-size: 12px; font-weight: 500; color: var(--primary); background: none;
+           border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+    .btn:hover { background: var(--primary-bg); }
+
+    /* Agent table */
+    table.agents { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .agents th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 8px 12px;
+                 border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .agents td { padding: 8px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+    .agents tbody tr { cursor: pointer; }
+    .agents tbody tr:hover { background: var(--row-hover); }
+    .agents tbody tr.selected { background: var(--row-sel); box-shadow: inset 3px 0 0 var(--primary); }
+    .agents tbody tr:last-child td { border-bottom: 0; }
+    .agents .id { font-variant-numeric: tabular-nums; color: var(--muted); }
+    .agents .pick { font: inherit; font-weight: 600; color: var(--primary); background: none; border: 0; padding: 0;
+                    cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+    .agents .pick:hover { text-decoration: underline; }
+    .agents .name { white-space: nowrap; }
+    .agents .ip { font-size: 12px; overflow-wrap: anywhere; }
+    .table-msg { padding: 16px; }
+    @media (max-width: 560px) {
+      .agents thead { display: none; }
+      .agents, .agents tbody, .agents tr, .agents td { display: block; width: 100%; }
+      .agents tbody tr { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; padding: 10px 14px;
+                         border-bottom: 1px solid var(--line-soft); }
+      .agents tbody tr:last-child { border-bottom: 0; }
+      .agents td { padding: 0; border: 0; }
+      .agents td.id { grid-column: 1; }
+      .agents td.name { grid-column: 2; }
+      .agents td.status { grid-column: 3; grid-row: 1; text-align: right; }
+      .agents td.os, .agents td.ip { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+    }
+
+    /* Status dots */
+    .dot { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--neutral-dot); flex: none; }
+    .dot.active::before { background: var(--ok-dot); }
+    .dot.disconnected::before { background: var(--danger-dot); }
+    .dot.pending::before { background: var(--warn-dot); }
+
+    /* Badges */
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; line-height: 20px;
+             padding: 0 8px; border-radius: 3px; background: var(--neutral-bg); color: var(--text); white-space: nowrap; }
+    .badge.primary { background: var(--primary-bg); color: var(--primary); }
+    .badge.ok, .badge.high { background: var(--ok-bg); color: var(--ok); }
+    .badge.warn, .badge.medium { background: var(--warn-bg); color: var(--warn); }
+    .badge.danger, .badge.low { background: var(--danger-bg); color: var(--danger); }
+    .badge.cat { text-transform: uppercase; letter-spacing: .03em; font-size: 11px; }
+
+    /* Brief */
+    .brief-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 16px; }
+    .brief-head h2 { margin: 0; font-size: 18px; font-weight: 600; color: var(--title); overflow-wrap: anywhere; }
+    .facts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+    .brief-head { flex-direction: column; }
+    section.block { margin-top: 20px; }
+    section.block > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+    .summary { margin: 0; font-size: 15px; line-height: 1.6; }
+    .callout { display: flex; gap: 10px; border-radius: 4px; padding: 10px 12px; margin-top: 16px; font-size: 13px; border-left: 3px solid; }
+    .callout.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-dot); }
+    .callout.danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-dot); }
+    .callout p { margin: 0; }
+    .callout strong { display: block; }
+
+    ol.fixes { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+    .fix { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
+    .fix-head { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+    .prio { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 4px;
+            font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .prio.p-high { background: var(--danger-bg); color: var(--danger); }
+    .prio.p-mid { background: var(--warn-bg); color: var(--warn); }
+    .prio.p-low { background: var(--neutral-bg); color: var(--text); }
+    .fix-head h4 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--title); line-height: 1.35; overflow-wrap: anywhere; }
+    .fix-body { padding: 12px 14px 14px 58px; display: grid; gap: 10px; }
+    @media (max-width: 560px) { .fix-body { padding-left: 14px; } }
+    .fix-body dt { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .fix-body dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+    dl { margin: 0; display: grid; gap: 10px; }
+    .remediation { background: var(--code-bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; }
+    ul.evidence { margin: 2px 0 0; padding-left: 18px; color: var(--text); }
+    ul.evidence li { margin: 2px 0; }
+
+    .coverage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 12px 0 0; }
+    .stat { border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; }
+    .stat b { display: block; font-size: 18px; color: var(--title); font-variant-numeric: tabular-nums; }
+    .stat span { font-size: 12px; color: var(--muted); }
+    .coverage-panel { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+    .coverage-panel p { margin: 8px 0 0; }
+    .coverage-panel ul:not(.badges) { margin: 6px 0 0; padding-left: 18px; }
+    .meta { margin: 20px 0 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-size: 12px; color: var(--muted); }
+
+    /* Empty, loading and error states */
+    .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+    .loading { display: flex; gap: 12px; align-items: flex-start; padding: 24px 16px; }
+    .spinner { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--primary);
+               animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+    .loading p { margin: 0; }
+    .elapsed { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
-  <header>
+  <header class="topbar">
+    <span class="mark" aria-hidden="true"></span>
     <h1>Agent Hardening Brief</h1>
-    <p>Hundreds of failed checks? Pick an agent to see what to fix first.</p>
+    <span class="for">for Wazuh</span>
+    <span class="crumbs" id="crumbs">Agents</span>
   </header>
   <main>
     <section class="panel" aria-labelledby="agents-h">
-      <h2 id="agents-h">Agents</h2>
-      <div id="agents"><span class="sub">Loading…</span></div>
+      <div class="panel-head">
+        <h2 id="agents-h">Agents</h2>
+        <span class="count" id="agent-count"></span>
+        <button class="btn" type="button" id="refresh">Refresh</button>
+      </div>
+      <div id="agents"><p class="table-msg muted" role="status">Loading agents…</p></div>
     </section>
-    <section class="panel" aria-live="polite" id="brief">
-      <span class="sub">No agent selected.</span>
+    <section class="panel" aria-labelledby="brief-h" id="brief-panel">
+      <div class="panel-head"><h2 id="brief-h">Brief</h2></div>
+      <div class="panel-body" id="brief" aria-live="polite">
+        <p class="empty">Select an agent to see what to fix first.</p>
+      </div>
     </section>
   </main>
   <script>
     // Plain DOM building with textContent only, so no Wazuh or model text is ever parsed as HTML.
     const el = (tag, props = {}, ...children) => {
-      const node = Object.assign(document.createElement(tag), props);
-      for (const c of children) if (c != null) node.append(c);
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(props)) {
+        if (k.includes("-")) node.setAttribute(k, v);  // aria-* and data-* are attributes, not properties
+        else node[k] = v;
+      }
+      for (const c of children) if (c != null && c !== false) node.append(c);
       return node;
     };
 
+    class HttpError extends Error {
+      constructor(status, body) {
+        super(body.detail || `HTTP ${status}`);
+        this.status = status;
+        this.code = body.error;
+      }
+    }
+
     async function getJSON(url) {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+      if (!res.ok) throw new HttpError(res.status, body);
       return body;
+    }
+
+    function errorTitle(err) {
+      if (err.code === "wazuh_auth_failed") return "Wazuh rejected the API credentials";
+      switch (err.status) {
+        case 503: return "Wazuh is unreachable";
+        case 404: return "Agent not found";
+        case 502: return "The Wazuh API returned an error";
+        case undefined: return "The service did not answer";
+        default: return `Request failed (HTTP ${err.status})`;
+      }
+    }
+
+    const errorBox = (err) => el("div", { className: "callout danger", role: "alert" },
+      el("p", {}, el("strong", { textContent: errorTitle(err) }), err.message));
+
+    const statusDot = (status) => el("span", {
+      className: `dot ${status}`, textContent: String(status).replace(/_/g, " ") });
+
+    // --- Agents ---------------------------------------------------------------------------------
+
+    let selectedId = null;
+
+    function selectRow(row, id) {
+      document.querySelectorAll(".agents tbody tr").forEach(r => {
+        r.classList.remove("selected");
+        r.querySelector(".pick").removeAttribute("aria-current");
+      });
+      row.classList.add("selected");
+      row.querySelector(".pick").setAttribute("aria-current", "true");
+      selectedId = id;
+      loadBrief(id);
     }
 
     async function loadAgents() {
       const box = document.getElementById("agents");
+      const count = document.getElementById("agent-count");
+      box.replaceChildren(el("p", { className: "table-msg muted", role: "status", textContent: "Loading agents…" }));
+      count.textContent = "";
       try {
         const agents = await getJSON("/agents");
-        box.replaceChildren();
-        if (!agents.length) box.append(el("span", { className: "sub", textContent: "No agents enrolled." }));
-        for (const a of agents) {
-          const btn = el("button", { type: "button" },
-            el("div", { textContent: `${a.id} · ${a.name}` }),
-            el("div", { className: "sub", textContent: `${a.os} · ${a.status}` }));
-          btn.addEventListener("click", () => {
-            box.querySelectorAll("button").forEach(b => b.removeAttribute("aria-current"));
-            btn.setAttribute("aria-current", "true");
-            loadBrief(a.id);
-          });
-          box.append(btn);
+        count.textContent = `${agents.length} enrolled`;
+        if (!agents.length) {
+          box.replaceChildren(el("p", { className: "table-msg muted", textContent: "No agents enrolled." }));
+          return;
         }
+        const rows = agents.map(a => {
+          const pick = el("button", { type: "button", className: "pick", textContent: a.name });
+          pick.setAttribute("aria-label", `Show brief for agent ${a.id}, ${a.name}`);
+          const row = el("tr", {},
+            el("td", { className: "id mono", textContent: a.id }),
+            el("td", { className: "name" }, pick),
+            el("td", { className: "os", textContent: a.os }),
+            el("td", { className: "status" }, statusDot(a.status)),
+            el("td", { className: "ip mono", textContent: a.ip || "—" }));
+          row.addEventListener("click", () => selectRow(row, a.id));
+          pick.addEventListener("keydown", (e) => {
+            if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+            const next = e.key === "ArrowDown" ? row.nextElementSibling : row.previousElementSibling;
+            if (next) { e.preventDefault(); next.querySelector(".pick").focus(); }
+          });
+          if (a.id === selectedId) { row.classList.add("selected"); pick.setAttribute("aria-current", "true"); }
+          return row;
+        });
+        box.replaceChildren(el("table", { className: "agents" },
+          el("caption", { className: "visually-hidden", textContent: "Wazuh agents. Select one to load its brief." }),
+          el("thead", {}, el("tr", {}, ...["ID", "Name", "OS", "Status", "IP"].map(h => el("th", { scope: "col", textContent: h })))),
+          el("tbody", {}, ...rows)));
       } catch (err) {
-        box.replaceChildren(el("span", { className: "error", textContent: err.message }));
+        box.replaceChildren(el("div", { className: "panel-body" }, errorBox(err)));
       }
+    }
+
+    // --- Brief ----------------------------------------------------------------------------------
+
+    let request = 0;  // ignore answers for an agent that is no longer selected
+    let timer = null;
+
+    function showLoading(box, id) {
+      const elapsed = el("span", { className: "elapsed", textContent: "0 s" });
+      box.replaceChildren(el("div", { className: "loading", role: "status" },
+        el("span", { className: "spinner", "aria-hidden": "true" }),
+        el("div", {},
+          el("p", {}, el("strong", { textContent: `Building the brief for agent ${id}… ` }), elapsed),
+          el("p", { className: "muted", textContent:
+            "Reading SCA, FIM and ports from Wazuh, then summarizing. With the claude-code provider this can take 30–120 s." }))));
+      const start = Date.now();
+      clearInterval(timer);
+      timer = setInterval(() => { elapsed.textContent = `${Math.round((Date.now() - start) / 1000)} s`; }, 1000);
+    }
+
+    function sourceBadge(b) {
+      if (b.source === "mock") return el("li", { className: "badge", textContent: "rules (mock summarizer)" });
+      return el("li", { className: "badge primary", textContent: b.model ? `${b.source} · ${b.model}` : b.source });
+    }
+
+    function prioClass(rank) { return rank <= 2 ? "p-high" : rank <= 4 ? "p-mid" : "p-low"; }
+
+    function fixCard(f) {
+      const prio = el("span", { className: `prio ${prioClass(f.rank)}`, textContent: f.rank });
+      prio.setAttribute("aria-label", `Priority ${f.rank}`);
+      const evidence = f.evidence.length
+        ? el("div", {}, el("dt", { textContent: "Evidence" }),
+            el("dd", {}, el("ul", { className: "evidence mono" }, ...f.evidence.map(e => el("li", { textContent: e })))))
+        : null;
+      const refs = f.references.length
+        ? el("div", {}, el("dt", { textContent: "References" }), el("dd", { className: "muted", textContent: f.references.join(" · ") }))
+        : null;
+      return el("li", { className: "fix" },
+        el("div", { className: "fix-head" }, prio,
+          el("div", {},
+            el("h4", { textContent: f.title }),
+            el("ul", { className: "badges" },
+              el("li", { className: `badge ${prioClass(f.rank) === "p-high" ? "danger" : prioClass(f.rank) === "p-mid" ? "warn" : ""}`,
+                         textContent: `Priority ${f.rank}` }),
+              el("li", { className: "badge cat", textContent: f.category })))),
+        el("dl", { className: "fix-body" },
+          el("div", {}, el("dt", { textContent: "Why" }), el("dd", { textContent: f.why })),
+          el("div", {}, el("dt", { textContent: "Remediation" }), el("dd", { className: "remediation", textContent: f.remediation })),
+          evidence, refs));
+    }
+
+    function coveragePanel(c) {
+      const stat = (n, label) => el("div", { className: "stat" }, el("b", { textContent: n }), el("span", { textContent: label }));
+      return el("div", { className: "coverage-panel" },
+        el("ul", { className: "badges" },
+          el("li", { className: `badge ${c.confidence}`, textContent: `Confidence: ${c.confidence}` })),
+        el("p", { textContent: c.note }),
+        el("div", { className: "coverage-grid" },
+          stat(c.sca_policies, "SCA policies"),
+          stat(`${c.sca_failed_checks_considered} / ${c.sca_failed_checks_total}`, "failed checks considered"),
+          stat(c.fim_entries_considered, "FIM entries considered"),
+          stat(c.listening_ports_considered, "listening ports")),
+        c.gaps.length ? el("div", {}, el("p", {}, el("strong", { textContent: "Gaps" })),
+          el("ul", {}, ...c.gaps.map(g => el("li", { textContent: g })))) : null);
+    }
+
+    function renderBrief(box, b) {
+      const a = b.agent;
+      box.replaceChildren(...[
+        el("div", { className: "brief-head" },
+          el("div", {},
+            el("h2", { textContent: a.name }),
+            el("p", { className: "facts" },
+              el("span", { className: "mono", textContent: a.id }),
+              statusDot(a.status),
+              el("span", { textContent: a.os }),
+              a.ip ? el("span", { className: "mono", textContent: a.ip }) : null,
+              a.wazuh_version ? el("span", { textContent: a.wazuh_version }) : null)),
+          el("ul", { className: "badges", "aria-label": "Brief source" },
+            sourceBadge(b),
+            el("li", { className: `badge ${b.coverage.confidence}`, textContent: `Confidence: ${b.coverage.confidence}` }),
+            b.stale ? el("li", { className: "badge warn", textContent: "Stale" }) : null)),
+        b.stale ? el("div", { className: "callout warn" }, el("p", {},
+          el("strong", { textContent: "Stale brief: Wazuh is unreachable" }),
+          `Showing the last brief built for this agent. ${b.stale_reason || ""}`)) : null,
+        b.fallback_reason ? el("div", { className: "callout warn" }, el("p", {},
+          el("strong", { textContent: "Rule-based fallback used" }), b.fallback_reason)) : null,
+        el("section", { className: "block", "aria-labelledby": "sum-h" },
+          el("h3", { id: "sum-h", textContent: "Summary" }),
+          el("p", { className: "summary", textContent: b.summary })),
+        el("section", { className: "block", "aria-labelledby": "fix-h" },
+          el("h3", { id: "fix-h", textContent: `What to fix first (${b.fixes.length})` }),
+          b.fixes.length ? el("ol", { className: "fixes" }, ...b.fixes.map(fixCard))
+                         : el("p", { className: "muted", textContent: "No fixes proposed." })),
+        el("section", { className: "block", "aria-labelledby": "cov-h" },
+          el("h3", { id: "cov-h", textContent: "Coverage" }),
+          coveragePanel(b.coverage)),
+        el("p", { className: "meta", textContent:
+          `Generated ${new Date(b.generated_at).toLocaleString()} · source: ${b.source}` + (b.model ? ` · model: ${b.model}` : "") }),
+      ].filter(Boolean));
     }
 
     async function loadBrief(id) {
       const box = document.getElementById("brief");
-      box.replaceChildren(el("span", { className: "sub", textContent: `Building brief for agent ${id}…` }));
+      const mine = ++request;
+      document.getElementById("crumbs").textContent = `Agents / ${id}`;
+      showLoading(box, id);
       try {
         const b = await getJSON(`/agents/${encodeURIComponent(id)}/brief`);
-        const badges = el("p", {},
-          el("span", { className: "badge", textContent: b.source === "claude" ? `claude · ${b.model}` : "mock summarizer" }),
-          el("span", { className: `badge ${b.coverage.confidence}`, textContent: `confidence: ${b.coverage.confidence}` }),
-          b.stale ? el("span", { className: "badge stale", textContent: "stale: Wazuh unreachable" }) : null);
-        const gaps = el("ul", {}, ...b.coverage.gaps.map(g => el("li", { textContent: g })));
-        const fixes = el("ol", { className: "fixes" }, ...b.fixes.map(f => el("li", {},
-          el("h3", { textContent: f.title }),
-          el("div", { className: "sub", textContent: [f.category.toUpperCase(), ...f.references].join(" · ") }),
-          el("p", {}, el("span", { className: "label", textContent: "Why: " }), f.why),
-          el("p", {}, el("span", { className: "label", textContent: "Fix: " }), f.remediation),
-          f.evidence.length ? el("ul", { className: "evidence" }, ...f.evidence.map(e => el("li", { textContent: e }))) : null)));
-        box.replaceChildren(
-          el("h2", { textContent: `${b.agent.name} · ${b.agent.os}` }),
-          badges,
-          el("p", { textContent: b.summary }),
-          el("div", { className: "coverage" },
-            el("span", { className: "label", textContent: "Coverage: " }), b.coverage.note, gaps),
-          fixes,
-          el("p", { className: "sub", textContent: `Generated ${new Date(b.generated_at).toLocaleString()}` +
-            (b.fallback_reason ? ` · mock used because: ${b.fallback_reason}` : "") }));
+        if (mine === request) renderBrief(box, b);
       } catch (err) {
-        box.replaceChildren(el("span", { className: "error", textContent: err.message }));
+        if (mine === request) box.replaceChildren(errorBox(err));
+      } finally {
+        if (mine === request) clearInterval(timer);
       }
     }
 
+    document.getElementById("refresh").addEventListener("click", loadAgents);
     loadAgents();
   </script>
 </body>
