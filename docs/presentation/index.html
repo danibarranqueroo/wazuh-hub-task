@@ -817,6 +817,7 @@
         <tr><td>Observability</td><td>Python logging</td><td>OpenTelemetry, SLOs, paging</td></tr>
         <tr><td>Status</td><td><code>/healthz</code>, <code>/readyz</code></td><td>Plus uptime checks, status page</td></tr>
         <tr><td>Prompt</td><td>One prompt in code</td><td>Versioned, flags, evals from feedback</td></tr>
+        <tr><td>Dashboard</td><td>Standalone page</td><td>Side panel in the Wazuh dashboard, then chat using our endpoints as tools</td></tr>
       </tbody>
     </table>
   </div>
@@ -825,6 +826,7 @@
     <li>Multi-tenancy from day one: tenant ID set by the gateway, on every cache key, row, trace and log line.</li>
     <li>The model call leaves the request path; today's stale-cache behaviour becomes the normal read path.</li>
     <li>Feedback loop: thumbs up/down, weekly triage, eval set, feature-flagged prompt rollout.</li>
+    <li>Next feature, drawn not built: an assistant in a Wazuh dashboard side panel. The chat backend calls /agents and /agents/{id}/brief as tools instead of querying Wazuh freely, reuses the dashboard session, keeps the rules fallback and guardrails, streams answers, and feeds thumbs up/down into the eval set. Not built because the plugin needs the exact OpenSearch Dashboards toolchain of 4.14.9, and a chat is a different product. Rollout: link, then brief panel, then chat.</li>
   </ul></aside>
 </section>
 
