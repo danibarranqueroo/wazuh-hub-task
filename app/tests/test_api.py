@@ -153,3 +153,6 @@ def test_index_page(api):
 
     assert response.status_code == 200
     assert "Agent Hardening Brief" in response.text
+    # Single file, no build step, no external requests (no CDN, no web fonts).
+    assert "http://" not in response.text
+    assert "https://" not in response.text

@@ -104,7 +104,7 @@ All settings come from environment variables or `app/.env` (gitignored). [`app/.
 
 | Method and path | Returns |
 |---|---|
-| `GET /` | The single HTML page: agent list on the left, brief on the right |
+| `GET /` | The single HTML page, styled to sit next to the Wazuh dashboard: an agent table (ID, name, OS, status, IP) on the left, the brief on the right (summary, fix cards, coverage). Stacks on narrow screens. No external requests. |
 | `GET /agents` | Agents known to the manager. Agent `000` (the manager itself) is hidden; add `?include_manager=true` to see it. |
 | `GET /agents/{id}/brief` | The brief for one agent (`id` is the 3-5 digit Wazuh agent ID) |
 | `GET /healthz` | `{"status": "ok"}` if the process is up. Does not call Wazuh. |
