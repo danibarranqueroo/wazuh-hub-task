@@ -419,3 +419,15 @@ What the subagent did, and what it decided:
 | Source badge | The old page labelled any non-`claude` source as "mock summarizer", so `claude-code` briefs were mislabelled. It now shows `source · model`. | Small fix found while restyling. |
 | Test | `test_index_page` also asserts the page has no `http://` or `https://` URLs. | Guards the "no external requests" rule. |
 | Visual check | Live lab, mock provider, agent 001, at 1440×900 and 390×844, no horizontal scroll. The loading, 503, 404, 502 (auth) and stale states were checked by routing fake responses in Playwright, not by breaking the lab. | Read-only against the lab. |
+
+## 2026-10-30 — Entry 9: a 24.04 agent, two more real briefs, and a demo video
+
+The main session did this work, driven by Dani. No subagent was involved.
+
+- **A second agent.** Dani enrolled `ubuntu-noble` (agent `002`, Ubuntu 24.04.5) by hand. The reason: Wazuh 4.14.9 ships `cis_ubuntu24-04` but nothing for 26.04, so this gives a real endpoint with SCA coverage.
+- **Two new example briefs.** The main session captured the mock and the `claude-code` briefs for `002` into `docs/examples/`.
+  - The first capture attempt hung: a stale port from an earlier run, so it was redone on a free port.
+  - Neither file contains a token or credential.
+- **The demo video.** Dani's screen recording was re-encoded with macOS `avconvert`: 3418×1840 at 36.7 MB became 1280×720 at about 12 MB. It is saved as `docs/demo/brief-demo.mp4`.
+  - Before publishing, the main session checked frames every 7 s. It shows only the page, nothing private.
+- **PHASE2.md.** The symlink fix is now confirmed on live data. The FIM-baseline issue stays open, with one good run noted.

@@ -1,0 +1,109 @@
+{
+    "agent": {
+        "id": "002",
+        "name": "ubuntu-noble",
+        "status": "active",
+        "os": "Ubuntu 24.04.5 LTS",
+        "ip": "FD07:B51A:CC66:0000:C828:7BFF:FE33:E773",
+        "wazuh_version": "Wazuh v4.14.9"
+    },
+    "generated_at": "2026-10-30T14:24:09.912613Z",
+    "source": "mock",
+    "model": null,
+    "fallback_reason": "LLM_PROVIDER is mock",
+    "stale": false,
+    "summary": "ubuntu-noble (Ubuntu 24.04.5 LTS) fails 98 SCA checks in cis_ubuntu24-04 (score 51%). These 5 fixes come first, ranked by remote exposure, authentication and privilege impact. Start with: Ensure iptables-persistent is not installed with ufw.",
+    "fixes": [
+        {
+            "rank": 1,
+            "title": "Ensure iptables-persistent is not installed with ufw",
+            "category": "sca",
+            "why": "Running both ufw and the services included in the iptables-persistent package may lead to conflict.",
+            "remediation": "Run the following command to remove the iptables-persistent package: # apt purge iptables-persistent.",
+            "evidence": [
+                "SCA check 35621 failed in policy cis_ubuntu24-04"
+            ],
+            "references": [
+                "CIS 4.2.2",
+                "MITRE T1562",
+                "MITRE T1562.004"
+            ]
+        },
+        {
+            "rank": 2,
+            "title": "Ensure ufw default deny firewall policy",
+            "category": "sca",
+            "why": "With a default accept policy the firewall will accept any packet that is not configured to be denied. It is easier to allow list acceptable usage than to deny list unacceptable usage.",
+            "remediation": "Run the following commands to implement a default deny policy: # ufw default deny incoming # ufw default deny outgoing # ufw default deny routed.",
+            "evidence": [
+                "SCA check 35624 failed in policy cis_ubuntu24-04"
+            ],
+            "references": [
+                "CIS 4.2.7",
+                "MITRE T1562",
+                "MITRE T1562.004"
+            ]
+        },
+        {
+            "rank": 3,
+            "title": "Ensure nftables is not in use with iptables",
+            "category": "sca",
+            "why": "Running both iptables and nftables may lead to conflict.",
+            "remediation": "Run the following command to remove nftables: # apt purge nftables - OR - Run the following commands to stop and mask nftables.service: # systemctl stop nftables.service # systemctl mask nftables.service.",
+            "evidence": [
+                "SCA check 35634 failed in policy cis_ubuntu24-04"
+            ],
+            "references": [
+                "CIS 4.4.1.2",
+                "MITRE T1562",
+                "MITRE T1562.004"
+            ]
+        },
+        {
+            "rank": 4,
+            "title": "Ensure ufw is not in use with iptables",
+            "category": "sca",
+            "why": "Running iptables.persistent with ufw enabled may lead to conflict and unexpected results.",
+            "remediation": "Run the following command to remove ufw: # apt purge ufw - OR - Run the following commands to disable ufw, and stop and mask ufw.service: # ufw disable # systemctl stop ufw.service # systemctl mask ufw.service Note: ufw disable needs to be run before systemctl mask ufw.service in order to correctly disable UFW.",
+            "evidence": [
+                "SCA check 35635 failed in policy cis_ubuntu24-04"
+            ],
+            "references": [
+                "CIS 4.4.1.3",
+                "MITRE T1562",
+                "MITRE T1562.004"
+            ]
+        },
+        {
+            "rank": 5,
+            "title": "Ensure permissions on /etc/ssh/sshd_config are configured",
+            "category": "sca",
+            "why": "configuration specifications for sshd need to be protected from unauthorized changes by non-privileged users.",
+            "remediation": "Run the following script to set ownership and permissions on /etc/ssh/sshd_config and files ending in .conf in the /etc/ssh/sshd_config.d directory: #!/usr/bin/env bash { chmod u-x,og-rwx /etc/ssh/sshd_config chown root:root /etc/ssh/sshd_config while IFS= read -r -d $'\\0' l_file; do if [ -e \"$l_file\" ]; then chmod u-x,og-rwx \"$l_file\" chown root:root \"$l_file\" fi done < <(find /etc/ssh/sshd_config.d -type f -print0 2>/dev/null) } - IF - other locations are listed in an Include statement, *.con\u2026",
+            "evidence": [
+                "SCA check 35640 failed in policy cis_ubuntu24-04"
+            ],
+            "references": [
+                "CIS 5.1.1",
+                "MITRE T1098",
+                "MITRE T1098.004",
+                "MITRE T1543",
+                "MITRE T1543.002"
+            ]
+        }
+    ],
+    "coverage": {
+        "confidence": "high",
+        "note": "98 SCA checks failed; the 60 highest-weighted were considered for ranking. File integrity data is a baseline only: none of the most recently modified files has changed since FIM first indexed it.",
+        "sca_policies": 1,
+        "sca_failed_checks_total": 98,
+        "sca_failed_checks_considered": 60,
+        "fim_entries_considered": 20,
+        "listening_ports_considered": 0,
+        "gaps": [
+            "98 SCA checks failed; the 60 highest-weighted were considered for ranking.",
+            "File integrity data is a baseline only: none of the most recently modified files has changed since FIM first indexed it.",
+            "Alerts and vulnerability detection are not included: the service reads the server API only, not the indexer."
+        ]
+    }
+}
