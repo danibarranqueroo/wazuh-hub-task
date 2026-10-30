@@ -41,13 +41,15 @@ A small service on top of my Wazuh lab. `GET /agents/{id}/brief` reads one agent
 - The model flagged `/usr/bin/sh` as a world-writable shell. It is a symlink, and Wazuh reports links as `rwxrwxrwx`. Fixed in `04463ee` by marking likely symlinks in the model input.
 - On agent `001` the model read the dates from FIM's first scan as recent changes ("verify the account-file changes from 11:40 UTC"), although its own coverage note said FIM is a baseline only. **Still open.**
 
-**AI in Phase 1.** I installed the lab by following the Wazuh docs, and wrote [`PHASE1.md`](PHASE1.md) without AI. The only thing I used AI for in Phase 1 was getting past errors I could not solve from the docs. Each one turned into a finding:
+**AI in Phase 1.** I installed the lab by following the Wazuh docs, and I wrote [`PHASE1.md`](PHASE1.md) myself. In Phase 1, I used AI only to get past three problems I could not solve from the docs:
 
-- **`root-ca-manager.pem` missing on macOS.** The certificate generator makes its output folder read-only and only then copies `root-ca.pem` to `root-ca-manager.pem`. On Linux, root ignores the read-only bit. On Docker Desktop for Mac, the bind mount enforces my user's permissions, so the copy fails. The script does not stop on errors, so the failure only shows when `docker compose up` cannot mount the file. The Docker guide does not mention macOS.
-- **`find: command not found` in the generator image.** The step that tightens key permissions aborts silently. It is harmless here, because a later `chmod` covers it, but it is the second silent failure in the same script.
-- **The reserved `admin` user.** The dashboard cannot change its password. It takes a new hash in `internal_users.yml` and a `securityadmin.sh` reload, because the indexer only reads that file on first start.
+- **The certificates on macOS.** The generator makes its output folder read-only and only then copies `root-ca.pem` to `root-ca-manager.pem`. On Linux, root ignores the read-only bit. On Docker Desktop for Mac, the bind mount enforces my user's permissions, so the copy fails. The script does not stop on errors, so the failure only shows when `docker compose up` cannot mount the file. The same output also shows `find: command not found`, a separate and harmless gap in the generator image. The Docker guide does not mention macOS.
+- **The reserved `admin` user.** The dashboard cannot change its password. Changing it takes a new hash in `internal_users.yml` and a `securityadmin.sh` reload, because the indexer only reads that file on its first start.
 - **`nano` would not start in the VM.** Ghostty sets `TERM=xterm-ghostty`, which Ubuntu does not know.
-- **No SCA results for my agent.** Wazuh 4.14.9 has no CIS policy for Ubuntu 26.04, so the agent skips the 22.04 policy. This one shaped the Phase 2 design.
+
+After writing `PHASE1.md`, I also used AI to rewrite some parts and to correct typos. The note at the end of that file says so.
+
+One more finding came from Phase 2, not Phase 1. My agent has no SCA results, because Wazuh 4.14.9 has no CIS policy for Ubuntu 26.04 and the agent skips the 22.04 policy. That shaped the brief's coverage note.
 
 ## 2. If users gave you feedback on it, how would you handle it?
 
