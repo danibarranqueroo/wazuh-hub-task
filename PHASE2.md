@@ -98,6 +98,7 @@ The target is drawn in [`docs/saas-target.md`](docs/saas-target.md). The parts t
 - **One contract.** FastAPI already generates the OpenAPI schema from the pydantic models (`/openapi.json`, `/docs`). I'd publish it and check changes to it in CI, so the UI and other services build against the same contract.
 - **ADRs for every decision that crosses a module**, like the two in [`docs/adr/`](docs/adr/), so new people (and agents) know why things are the way they are.
 - **The same pattern for every AI feature:** compute the facts by rule, send the model a small payload, validate its output, keep a deterministic fallback, and record `source`.
+- **The next feature, drawn:** an assistant in a Wazuh dashboard side panel that uses this service's endpoints as tools. See [Next: an in-dashboard assistant](docs/saas-target.md#next-an-in-dashboard-assistant).
 
 ## 6. How would you document it, and how would you make sure every change is backed by up-to-date documentation?
 
