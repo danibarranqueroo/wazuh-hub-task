@@ -297,14 +297,14 @@
       <ul class="clean" style="margin-top:14px">
         <li>A real host: systemd, SSH, a filesystem</li>
         <li>Detections behave like production</li>
-        <li>Known from Falco proofs of concept at Prowler</li>
+        <li>Known from a Falco PoC at Prowler: Falco is Linux-only</li>
       </ul>
     </div>
   </div>
   <aside class="notes"><ul>
     <li>OVA would not run on Apple Silicon, so Docker was the obvious route; the 4.14.9 images have arm64 builds.</li>
     <li>I wanted a real Linux host for the agent so SSH brute force and FIM behave as they would on a server.</li>
-    <li>OrbStack: at Prowler we used it for Falco PoCs, since Falco only runs on Linux.</li>
+    <li>OrbStack: last summer, in a Falco runtime-security PoC at Prowler, we needed Linux VMs on Macs and OrbStack was the easy option we found.</li>
   </ul></aside>
 </section>
 
@@ -371,14 +371,12 @@
       <table class="dense">
         <thead><tr><th>Break</th><th>What I learned</th></tr></thead>
         <tbody>
-          <tr><td>Cert copy denied</td><td>On macOS, Docker Desktop bind mounts enforce my user's permissions, so <code>root-ca-manager.pem</code> is never created</td></tr>
-          <tr><td><code>find</code> missing</td><td>The cert script continues silently after errors</td></tr>
-          <tr><td>Reserved <code>admin</code> password</td><td><code>internal_users.yml</code> hash + <code>securityadmin.sh</code> reload</td></tr>
-          <tr><td><code>nano</code> would not start</td><td>Ubuntu does not know <code>TERM=xterm-ghostty</code></td></tr>
-          <tr><td>No SCA on agent 001</td><td>No CIS policy for Ubuntu 26.04 in 4.14.9</td></tr>
+          <tr><td>Certificates on macOS</td><td>The generator's <code>cp</code> to <code>root-ca-manager.pem</code> is denied on Docker Desktop for Mac, and the script carries on silently. Not in the docs.</td></tr>
+          <tr><td>Reserved <code>admin</code> password</td><td>The dashboard cannot change it: new hash in <code>internal_users.yml</code>, then a <code>securityadmin.sh</code> reload</td></tr>
+          <tr><td><code>nano</code> would not start</td><td>Ubuntu does not know Ghostty's <code>TERM=xterm-ghostty</code></td></tr>
         </tbody>
       </table>
-      <p class="caption" style="margin-top:14px">AI was used in Phase 1 only to get past these errors.</p>
+      <p class="caption" style="margin-top:14px">In Phase 1 I used AI only to get past these three problems.</p>
     </div>
     <div class="f2 col" style="gap:14px; min-width:0">
       <figure style="flex:1"><div class="shot" style="flex:1"><img src="../../screenshots/01-certs-generator-permission-denied.png" alt="Certificate generator output with permission denied"></div>
@@ -389,8 +387,9 @@
   </div>
   <aside class="notes"><ul>
     <li>The generator makes its output folder read-only, then copies root-ca.pem; on Linux root ignores that, on Docker Desktop for Mac it fails.</li>
-    <li>Two silent failures in the same script; the error only shows when compose cannot mount the file.</li>
-    <li>The last one, no SCA policy for Ubuntu 26.04, shaped the Phase 2 design.</li>
+    <li>The certificates are generated; only the root-ca-manager copies are missing. The error only shows when compose cannot mount the file. Fix: make the folder writable, copy, make it read-only again.</li>
+    <li><code>find: command not found</code> in the same output is a separate, harmless gap in the generator image.</li>
+    <li>The Ubuntu 26.04 SCA gap is not here: it was found in Phase 2 (slide 15).</li>
   </ul></aside>
 </section>
 
@@ -407,7 +406,7 @@
   <aside class="notes"><ul>
     <li>admin is a reserved user, so the dashboard refuses to change it.</li>
     <li>Steps: new hash in internal_users.yml, update the compose environment, then securityadmin.sh inside the indexer.</li>
-    <li>Leave room for Dani's PHASE1.md wording here.</li>
+    <li>The first two letters are left visible on purpose, to show it is no longer the default password.</li>
   </ul></aside>
 </section>
 
@@ -785,17 +784,17 @@
   <div class="grow" style="display:flex;align-items:center">
     <div class="tiles" style="width:100%">
       <div class="tile"><div class="num">83</div><div class="lbl">tests passing</div><div class="sub">none needs the lab, a key or a login</div></div>
-      <div class="tile"><div class="num">26</div><div class="lbl">commits</div><div class="sub">on <code>phase2/hardening-brief</code>, signed</div></div>
+      <div class="tile"><div class="num">28</div><div class="lbl">commits</div><div class="sub">on <code>phase2/hardening-brief</code>, signed</div></div>
       <div class="tile"><div class="num">2</div><div class="lbl">ADRs</div><div class="sub">stack and shape · dev-only SDK path</div></div>
-      <div class="tile"><div class="num" style="color:var(--ok)">Green</div><div class="lbl">CI on PR #1</div><div class="sub">ruff and pytest, last pushed head</div></div>
+      <div class="tile"><div class="num" style="color:var(--ok)">Green</div><div class="lbl">CI on PR #1</div><div class="sub">ruff and pytest on every push</div></div>
       <div class="tile"><div class="num">2</div><div class="lbl">subagents</div><div class="sub">reviewer · docs-keeper</div></div>
       <div class="tile"><div class="num">2</div><div class="lbl">real example briefs</div><div class="sub">claude-code vs. mock, agent 000</div></div>
     </div>
   </div>
   <aside class="notes"><ul>
     <li>83 tests from uv run pytest on 2026-10-29; HTTP mocked with respx, model clients replaced with fakes.</li>
-    <li>26 commits on the Phase 2 branch, one logical change each, docs in the same commit as code.</li>
-    <li>CI runs ruff and pytest on every push and PR; the last pushed head of PR #1 is green. Later docs-only commits are local until I push.</li>
+    <li>28 commits on the Phase 2 branch, one logical change each, docs in the same commit as code.</li>
+    <li>CI runs ruff and pytest on every push and PR to PR #1. Check the latest run before presenting.</li>
   </ul></aside>
 </section>
 
@@ -833,17 +832,17 @@
 <section class="slide" data-section="What's next">
   <h2>With one more day</h2>
   <div class="row" style="gap:22px">
-    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">1</div><h3>Fix the open FIM case</h3><p class="small muted" style="margin:0">Baseline dates must not read as changes</p></div>
-    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">2</div><h3>Versioned prompt + feedback</h3><p class="small muted" style="margin:0">Template, thumbs up/down, first eval cases</p></div>
-    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">3</div><h3>CI docs check</h3><p class="small muted" style="margin:0">Fail when a setting or route is undocumented</p></div>
+    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">1</div><h3>Agents on other machines</h3><p class="small muted" style="margin:0">Connect them to my local Wazuh, try more attack types</p></div>
+    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">2</div><h3>Fix the open FIM case</h3><p class="small muted" style="margin:0">Baseline dates must not read as changes</p></div>
+    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">3</div><h3>Versioned prompt + feedback</h3><p class="small muted" style="margin:0">Template, thumbs up/down, first eval cases</p></div>
   </div>
   <div class="grow" style="display:flex;align-items:center;justify-content:center">
     <p style="font-size:64px;font-weight:700;letter-spacing:-.02em;margin:0">Questions?</p>
   </div>
   <aside class="notes"><ul>
-    <li>All three are listed as open or future work in the repo: PHASE2.md, saas-target.md, workflow.md.</li>
-    <li>The two review catches would become the first eval cases.</li>
-    <li>Today the docs rule is enforced by CLAUDE.md and the docs-keeper agent, not by CI.</li>
+    <li>Lab: my PHASE1.md answer. Agents on other computers reaching my local manager on 1514/1515, to see how events from real machines are processed and to test more attack types.</li>
+    <li>Service: the FIM baseline issue is still open in PHASE2.md. The two review catches would become the first eval cases for a versioned prompt.</li>
+    <li>Next after that: a CI docs check. Today the docs rule is enforced by CLAUDE.md and the docs-keeper agent, not by CI.</li>
   </ul></aside>
 </section>
 

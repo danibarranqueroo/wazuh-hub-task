@@ -448,3 +448,15 @@ What the subagent did, and the choices it made:
 | Phase 1 slides | Short facts taken from the screenshots, `docs/plan.md`, `docs/architecture.md` and PHASE2.md Q1. Dani aligns them with `PHASE1.md` once it is written. |
 | Rendering check | Headless Chromium (Playwright 1.49.1, in the session scratchpad, not in the repo) at 1280×720 and 1920×1080: no element outside a slide, all eleven screenshot references load, notes toggle, hash navigation survives a reload, print gives 22 pages of 1280×720, and the page makes no non-file requests. |
 | Demo script | Uses the mock on the main instance for speed. The failure-mode steps run on extra local ports with a wrong `WAZUH_API_URL` or no key, so the demo never stops a Wazuh container. The 503 step was run against a closed port; the steps that need the live lab were not run. |
+
+## 2026-10-30 — Entry 8: aligning the deck with PHASE1.md
+
+The main session made these edits itself, once PHASE1.md was committed. No subagent was involved.
+
+- **Slide 6.** Now lists the same three Phase 1 problems as PHASE1.md: the certificates on macOS, the reserved `admin` password, and `nano`/`TERM`. The `find` gap is now a speaker note. The Ubuntu 26.04 SCA gap moved to Phase 2 (slide 15), because that is when it was found.
+- **Slide 4.** The OrbStack reason is now worded as in PHASE1.md: a Falco runtime-security PoC at Prowler needed Linux VMs on Macs.
+- **Slide 7.** The note now says why the first two letters of the new password are visible.
+- **Slide 20.** The commit count is updated to 28.
+- **Slide 22.** Leads with Dani's own answer from PHASE1.md: agents on other machines.
+- **`demo-script.md`.** Now says where the Wazuh API password lives.
+- **Re-checked headless** at 1280×720 and 1920×1080: no layout issues and no external requests.

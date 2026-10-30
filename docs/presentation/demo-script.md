@@ -16,7 +16,7 @@ export PATH="$HOME/.local/share/mise/shims:$HOME/.docker/bin:$PATH"
    docker ps --format '{{.Names}}  {{.Status}}' | grep wazuh
    ```
 
-2. `app/.env` exists with the real `WAZUH_API_PASSWORD` (copy it from `.env.example` once if needed).
+2. `app/.env` exists with the real `WAZUH_API_PASSWORD`. If it doesn't, copy it from `.env.example` once. The password is `API_PASSWORD` under `wazuh.manager` in `lab/wazuh-docker/single-node/docker-compose.yml`.
 3. Start the service in terminal 1 and leave it running. The demo uses the mock, because it answers in under a second and needs no login:
 
    ```bash
