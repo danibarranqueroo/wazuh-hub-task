@@ -6,7 +6,7 @@ This repository holds my work for the Wazuh Hub team's technical task. The task 
 |---|---|---|
 | 1 | Get to know Wazuh: install a 4.x lab and explore it, without AI | [`PHASE1.md`](PHASE1.md), [`screenshots/`](screenshots/) |
 | 2 | Build a small piece of a SaaS service on top of Wazuh, with AI | [`app/`](app/), [`docs/`](docs/), [`PHASE2.md`](PHASE2.md) |
-| 3 | Present the work | Live conversation |
+| 3 | Present the work | Live conversation, [`docs/presentation/`](docs/presentation/) |
 
 ## Repository map
 
@@ -32,7 +32,8 @@ This repository holds my work for the Wazuh Hub team's technical task. The task 
     ├── agent-log.md         # How I directed AI agents, dated
     ├── adr/                 # Architecture decision records
     ├── examples/            # Real briefs: claude-code vs mock, agents 000 and 002
-    └── demo/                # 60-second screen recording of the page against the lab
+    ├── demo/                # 60-second screen recording of the page against the lab
+    └── presentation/        # Phase 3: offline HTML slide deck and live demo script
 ```
 
 ## Lab at a glance

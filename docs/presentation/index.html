@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wazuh Hub Technical Task</title>
+<style>
+  :root {
+    --bg: #eef1f5;
+    --paper: #ffffff;
+    --ink: #17202b;
+    --muted: #5a6676;
+    --faint: #8a95a5;
+    --line: #d8dee7;
+    --soft: #f4f6f9;
+    --accent: #2563c9;
+    --accent-soft: #e6eefb;
+    --accent-ink: #1a4a99;
+    --ok: #1e7a4f;
+    --ok-soft: #e3f3ea;
+    --warn: #9a5b00;
+    --warn-soft: #fbf0dc;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); overflow: hidden; }
+
+  /* Stage: a fixed 1280x720 canvas scaled to the window */
+  .viewport { position: fixed; inset: 0; }
+  .deck {
+    position: absolute; left: 50%; top: 50%;
+    width: 1280px; height: 720px;
+    transform-origin: center center;
+    transform: translate(-50%, -50%) scale(var(--scale, 1));
+  }
+  .slide {
+    position: absolute; inset: 0;
+    background: var(--paper);
+    padding: 52px 72px 64px;
+    display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden;
+    transition: opacity .25s ease, visibility .25s;
+    box-shadow: 0 10px 40px rgba(20, 30, 50, .10);
+    overflow: hidden;
+  }
+  .slide.active { opacity: 1; visibility: visible; }
+  @media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
+
+  /* Per-slide chrome, injected by JS so it also prints */
+  .chrome-section {
+    position: absolute; top: 22px; right: 32px;
+    font-size: 14px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .chrome-count {
+    position: absolute; bottom: 20px; right: 32px;
+    font-size: 14px; color: var(--faint); font-variant-numeric: tabular-nums;
+  }
+  .chrome-name { position: absolute; bottom: 20px; left: 72px; font-size: 14px; color: var(--faint); }
+
+  .progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); width: 0; z-index: 5; transition: width .25s ease; }
+  @media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+
+  /* Type */
+  h1 { font-size: 64px; line-height: 1.08; margin: 0; letter-spacing: -.02em; font-weight: 700; }
+  h2 { font-size: 42px; line-height: 1.12; margin: 0 0 28px; letter-spacing: -.015em; font-weight: 700; }
+  .kicker { font-size: 18px; color: var(--accent); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
+  p, li, td, th { font-size: 22px; line-height: 1.4; }
+  p { margin: 0 0 14px; }
+  .lead { font-size: 26px; color: var(--muted); line-height: 1.4; }
+  .muted { color: var(--muted); }
+  code, .mono { font-family: var(--mono); font-size: .9em; }
+  code { background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+  .caption { font-size: 15px; color: var(--muted); margin-top: 8px; line-height: 1.35; }
+  .small { font-size: 18px; }
+  .accent { color: var(--accent); }
+  ul.clean { list-style: none; padding: 0; margin: 0; }
+  ul.clean li { padding-left: 26px; position: relative; margin-bottom: 12px; }
+  ul.clean li::before { content: ""; position: absolute; left: 4px; top: .62em; width: 9px; height: 9px; border-radius: 2px; background: var(--accent); }
+
+  /* Layout helpers */
+  .grow { flex: 1; min-height: 0; }
+  .row { display: flex; gap: 32px; }
+  .col { display: flex; flex-direction: column; min-width: 0; }
+  .center { align-items: center; justify-content: center; }
+  .f1 { flex: 1; } .f2 { flex: 2; } .f3 { flex: 3; }
+
+  /* Screenshots */
+  figure { margin: 0; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .shot {
+    border: 1px solid var(--line); border-radius: 10px; background: var(--soft);
+    padding: 6px; box-shadow: 0 4px 16px rgba(20, 30, 50, .08);
+    display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden;
+  }
+  .shot img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 5px; }
+
+  /* Tables */
+  table { border-collapse: collapse; width: 100%; }
+  th { text-align: left; font-size: 16px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 0 14px 10px 0; border-bottom: 2px solid var(--ink); }
+  td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 20px; }
+  td:first-child { font-weight: 600; }
+  table.dense td { padding: 8px 14px 8px 0; font-size: 19px; }
+
+  /* Cards, pills, tiles */
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 22px 26px; }
+  .card h3 { margin: 0 0 10px; font-size: 24px; }
+  .pill { display: inline-block; font-size: 15px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); vertical-align: middle; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.grey { background: #e9edf2; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .tile { border: 1px solid var(--line); border-radius: 12px; padding: 22px 26px; background: var(--paper); }
+  .tile .num { font-size: 64px; font-weight: 700; line-height: 1; color: var(--accent); letter-spacing: -.02em; }
+  .tile .lbl { font-size: 20px; margin-top: 10px; font-weight: 600; }
+  .tile .sub { font-size: 15px; color: var(--muted); margin-top: 4px; }
+
+  /* Code excerpt */
+  pre.code { margin: 0; background: #16202c; color: #dfe6ef; border-radius: 10px; padding: 18px 22px; font-family: var(--mono); font-size: 16px; line-height: 1.5; overflow: hidden; white-space: pre; }
+  pre.code .k { color: #8fb8ff; } pre.code .s { color: #b9e3a5; } pre.code .n { color: #f5c084; } pre.code .c { color: #7f8c9d; }
+
+  /* Flow (HTML) */
+  .flow { display: flex; align-items: stretch; gap: 0; }
+  .flow .step { flex: 1; border: 1px solid var(--line); background: var(--soft); border-radius: 10px; padding: 14px 14px; min-width: 0; }
+  .flow .step b { display: block; font-size: 20px; margin-bottom: 4px; }
+  .flow .step span { display: block; font-size: 15px; color: var(--muted); line-height: 1.35; }
+  .flow.big .step { padding: 20px 16px; }
+  .flow.big .step b { font-size: 22px; margin-bottom: 8px; }
+  .flow.big .step span { font-size: 17px; }
+  .flow .step.hl { background: var(--accent-soft); border-color: #b8cdf0; }
+  .flow .arrow { width: 30px; flex: 0 0 30px; display: flex; align-items: center; justify-content: center; color: var(--faint); font-size: 22px; }
+
+  svg text { font-family: var(--sans); }
+  svg .mono { font-family: var(--mono); }
+
+  /* Title slide */
+  .title-slide { justify-content: center; }
+  .title-slide .rule { width: 72px; height: 5px; background: var(--accent); border-radius: 3px; margin: 30px 0; }
+
+  /* Speaker notes */
+  .slide .notes { display: none; }
+  .notes-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: #111a24; color: #e7edf5; padding: 16px 28px 18px;
+    font-size: 18px; line-height: 1.45; max-height: 34vh; overflow: auto;
+    border-top: 3px solid var(--accent); display: none;
+  }
+  .notes-panel.open { display: block; }
+  .notes-panel .np-head { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #8fb8ff; margin-bottom: 6px; }
+  .notes-panel ul { margin: 0; padding-left: 22px; }
+  .notes-panel li { font-size: 18px; margin-bottom: 4px; }
+  .hint { position: fixed; left: 12px; top: 8px; font-size: 12px; color: var(--faint); z-index: 4; }
+
+  @page { size: 1280px 720px; margin: 0; }
+  @media print {
+    html, body { height: auto; overflow: visible; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .viewport { position: static; }
+    .deck { position: static; transform: none !important; width: 1280px; height: auto; }
+    .slide { position: relative; opacity: 1; visibility: visible; box-shadow: none; width: 1280px; height: 720px; break-after: page; page-break-after: always; transition: none; }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+    .progress, .notes-panel, .hint { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="viewport">
+<main class="deck" id="deck">
+
+<!-- 1 -->
+<section class="slide title-slide" data-section="Intro">
+  <div class="kicker">Wazuh Hub · Software Engineer</div>
+  <h1>Wazuh Hub<br>technical task</h1>
+  <div class="rule"></div>
+  <p class="lead" style="margin:0">Dani Barranquero</p>
+  <p class="muted" style="font-size:20px">2026-10-29</p>
+  <aside class="notes"><ul>
+    <li>Thanks for the time. This is a conversation: interrupt me whenever.</li>
+    <li>Plan: what I learned running Wazuh, what I built on it, what I would do next.</li>
+    <li>Everything I show is in the repo: docs, code, screenshots, agent log.</li>
+  </ul></aside>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-section="Intro">
+  <h2>Three phases</h2>
+  <div class="grow row" style="align-items:stretch; gap:26px; margin-top:12px">
+    <div class="card f1">
+      <div class="num accent" style="font-size:56px;font-weight:700;line-height:1">1</div>
+      <h3 style="margin-top:18px">The lab</h3>
+      <p>Install Wazuh 4.x and explore it.</p>
+      <span class="pill grey">By hand, no AI</span>
+    </div>
+    <div class="card f1">
+      <div class="num accent" style="font-size:56px;font-weight:700;line-height:1">2</div>
+      <h3 style="margin-top:18px">The build</h3>
+      <p>A small SaaS slice on top of Wazuh.</p>
+      <span class="pill">With AI</span>
+    </div>
+    <div class="card f1">
+      <div class="num accent" style="font-size:56px;font-weight:700;line-height:1">3</div>
+      <h3 style="margin-top:18px">The conversation</h3>
+      <p>Show what I learned and built.</p>
+      <span class="pill grey">Today</span>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Phase 1 was deliberately AI-free: the lab work, the screenshots and PHASE1.md.</li>
+    <li>Phase 2 used AI heavily, with a trail: plan, CLAUDE.md, agent log with every prompt.</li>
+    <li>Both phases ran in parallel: a background subagent built Phase 2 groundwork while I did the lab.</li>
+  </ul></aside>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-section="Phase 1">
+  <h2>The lab at a glance</h2>
+  <div class="grow" style="display:flex;align-items:center">
+  <svg viewBox="0 0 1136 470" width="1136" height="470" role="img" aria-label="Lab diagram: Docker Desktop on a Mac runs the manager, indexer and dashboard; an OrbStack Ubuntu VM runs the agent">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563c9"/></marker>
+      <marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5a6676"/></marker>
+    </defs>
+    <!-- Docker Desktop host -->
+    <rect x="1" y="20" width="780" height="440" rx="16" fill="#f4f6f9" stroke="#d8dee7" stroke-width="2"/>
+    <text x="24" y="52" font-size="20" font-weight="700" fill="#17202b">Mac (Apple Silicon) · Docker Desktop</text>
+    <text x="24" y="76" font-size="15" fill="#5a6676">official wazuh-docker single-node compose</text>
+    <!-- indexer -->
+    <rect x="30" y="100" width="300" height="130" rx="12" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="50" y="138" font-size="21" font-weight="700" fill="#17202b">wazuh.indexer</text>
+    <text x="50" y="166" font-size="17" fill="#5a6676">stores alerts and events</text>
+    <text x="50" y="206" class="mono" font-size="18" fill="#2563c9">:9200</text>
+    <!-- dashboard -->
+    <rect x="30" y="300" width="300" height="130" rx="12" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="50" y="338" font-size="21" font-weight="700" fill="#17202b">wazuh.dashboard</text>
+    <text x="50" y="366" font-size="17" fill="#5a6676">the web UI</text>
+    <text x="50" y="406" class="mono" font-size="18" fill="#2563c9">:443 → 5601</text>
+    <!-- manager -->
+    <rect x="430" y="100" width="320" height="330" rx="12" fill="#fff" stroke="#2563c9" stroke-width="2"/>
+    <text x="452" y="138" font-size="21" font-weight="700" fill="#17202b">wazuh.manager</text>
+    <text x="452" y="164" font-size="15" fill="#5a6676">also agent 000</text>
+    <g font-size="17">
+      <text x="452" y="210" class="mono" fill="#2563c9">1514/tcp</text><text x="560" y="210" fill="#17202b">agent events</text>
+      <text x="452" y="248" class="mono" fill="#2563c9">1515/tcp</text><text x="560" y="248" fill="#17202b">enrollment</text>
+      <text x="452" y="286" class="mono" fill="#2563c9">514/udp</text><text x="560" y="286" fill="#17202b">syslog</text>
+      <text x="452" y="324" class="mono" fill="#2563c9">55000/tcp</text><text x="560" y="324" fill="#17202b">server API</text>
+    </g>
+    <text x="452" y="400" font-size="15" fill="#5a6676">Filebeat ships alerts to the indexer</text>
+    <!-- edges inside docker -->
+    <line x1="430" y1="165" x2="336" y2="165" stroke="#5a6676" stroke-width="2" marker-end="url(#ahg)"/>
+    <text x="352" y="155" font-size="15" fill="#5a6676">alerts</text>
+    <line x1="180" y1="300" x2="180" y2="236" stroke="#5a6676" stroke-width="2" marker-end="url(#ahg)"/>
+    <text x="190" y="274" font-size="15" fill="#5a6676">reads</text>
+    <line x1="330" y1="360" x2="424" y2="360" stroke="#5a6676" stroke-width="2" marker-end="url(#ahg)"/>
+    <text x="344" y="350" font-size="15" fill="#5a6676">API</text>
+    <!-- OrbStack VM -->
+    <rect x="850" y="140" width="285" height="240" rx="16" fill="#f4f6f9" stroke="#d8dee7" stroke-width="2"/>
+    <text x="870" y="172" font-size="20" font-weight="700" fill="#17202b">OrbStack VM</text>
+    <text x="870" y="196" font-size="15" fill="#5a6676">Ubuntu 26.04</text>
+    <rect x="870" y="216" width="245" height="140" rx="12" fill="#fff" stroke="#2563c9" stroke-width="2"/>
+    <text x="890" y="252" font-size="21" font-weight="700" fill="#17202b">wazuh-agent</text>
+    <text x="890" y="280" font-size="17" fill="#5a6676">ubuntu-lab · agent 001</text>
+    <text x="890" y="322" font-size="15" fill="#5a6676">FIM, SCA, inventory, logs</text>
+    <!-- agent to manager -->
+    <line x1="870" y1="268" x2="757" y2="268" stroke="#2563c9" stroke-width="3" marker-end="url(#ah)"/>
+    <text x="804" y="236" text-anchor="middle" class="mono" font-size="14" fill="#2563c9">host.orb.</text>
+    <text x="804" y="254" text-anchor="middle" class="mono" font-size="14" fill="#2563c9">internal</text>
+    <!-- version badge -->
+    <rect x="890" y="30" width="230" height="50" rx="25" fill="#e6eefb"/>
+    <text x="1005" y="62" font-size="20" font-weight="700" fill="#1a4a99" text-anchor="middle">Wazuh 4.14.9</text>
+  </svg>
+  </div>
+  <aside class="notes"><ul>
+    <li>Server side is the official wazuh-docker single-node compose on Docker Desktop.</li>
+    <li>The agent is a real Ubuntu VM in OrbStack; it reaches the manager through host.orb.internal.</li>
+    <li>Ports as published: 1514/1515 tcp, 514 udp and 55000 on the manager, 9200 indexer, 443 to 5601 dashboard.</li>
+    <li>Version 4.14.9: latest stable 4.x tag on wazuh-docker when I started; images have arm64 builds.</li>
+  </ul></aside>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-section="Phase 1">
+  <h2>Why this setup</h2>
+  <div class="grow row" style="gap:28px; align-items:stretch">
+    <div class="card f1">
+      <div class="kicker">Server stack</div>
+      <h3>Docker, official compose</h3>
+      <ul class="clean" style="margin-top:14px">
+        <li>The Wazuh OVA is x86-only</li>
+        <li>This Mac is Apple Silicon</li>
+        <li>Reproducible, quick to tear down</li>
+      </ul>
+    </div>
+    <div class="card f1">
+      <div class="kicker">Agent host</div>
+      <h3>OrbStack Ubuntu VM</h3>
+      <ul class="clean" style="margin-top:14px">
+        <li>A real host: systemd, SSH, a filesystem</li>
+        <li>Detections behave like production</li>
+        <li>Known from a Falco PoC at Prowler: Falco is Linux-only</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>OVA would not run on Apple Silicon, so Docker was the obvious route; the 4.14.9 images have arm64 builds.</li>
+    <li>I wanted a real Linux host for the agent so SSH brute force and FIM behave as they would on a server.</li>
+    <li>OrbStack: last summer, in a Falco runtime-security PoC at Prowler, we needed Linux VMs on Macs and OrbStack was the easy option we found.</li>
+  </ul></aside>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-section="Phase 1">
+  <h2>How an event travels</h2>
+  <div class="grow" style="display:flex;flex-direction:column;justify-content:center;gap:34px">
+  <svg viewBox="0 0 1136 200" width="1136" height="200" role="img" aria-label="Agent to remoted to analysisd to Filebeat to indexer to dashboard">
+    <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563c9"/></marker></defs>
+    <g font-size="15" fill="#5a6676">
+      <!-- boxes: w=160 gap=35 -->
+      <rect x="0" y="40" width="160" height="110" rx="12" fill="#e6eefb" stroke="#b8cdf0" stroke-width="1.5"/>
+      <text x="80" y="82" text-anchor="middle" font-size="21" font-weight="700" fill="#17202b">Agent</text>
+      <text x="80" y="108" text-anchor="middle">logcollector</text><text x="80" y="128" text-anchor="middle">syscheckd</text>
+
+      <rect x="195" y="40" width="160" height="110" rx="12" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+      <text x="275" y="82" text-anchor="middle" font-size="21" font-weight="700" fill="#17202b">remoted</text>
+      <text x="275" y="108" text-anchor="middle">receives events</text><text x="275" y="128" text-anchor="middle">manager</text>
+
+      <rect x="390" y="40" width="160" height="110" rx="12" fill="#fff" stroke="#2563c9" stroke-width="2"/>
+      <text x="470" y="82" text-anchor="middle" font-size="21" font-weight="700" fill="#17202b">analysisd</text>
+      <text x="470" y="108" text-anchor="middle">decoders</text><text x="470" y="128" text-anchor="middle">and rules</text>
+
+      <rect x="585" y="40" width="160" height="110" rx="12" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+      <text x="665" y="82" text-anchor="middle" font-size="21" font-weight="700" fill="#17202b">Filebeat</text>
+      <text x="665" y="108" text-anchor="middle">ships alerts</text><text x="665" y="128" text-anchor="middle">manager</text>
+
+      <rect x="780" y="40" width="160" height="110" rx="12" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+      <text x="860" y="82" text-anchor="middle" font-size="21" font-weight="700" fill="#17202b">Indexer</text>
+      <text x="860" y="108" text-anchor="middle">stores</text><text x="860" y="128" text-anchor="middle">:9200</text>
+
+      <rect x="975" y="40" width="160" height="110" rx="12" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+      <text x="1055" y="82" text-anchor="middle" font-size="21" font-weight="700" fill="#17202b">Dashboard</text>
+      <text x="1055" y="108" text-anchor="middle">shows</text><text x="1055" y="128" text-anchor="middle">:443</text>
+    </g>
+    <g stroke="#2563c9" stroke-width="2.5" marker-end="url(#ah2)">
+      <line x1="160" y1="95" x2="192" y2="95"/><line x1="355" y1="95" x2="387" y2="95"/>
+      <line x1="550" y1="95" x2="582" y2="95"/><line x1="745" y1="95" x2="777" y2="95"/>
+      <line x1="940" y1="95" x2="972" y2="95"/>
+    </g>
+    <g font-size="15" fill="#2563c9" text-anchor="middle" font-weight="600">
+      <text x="177" y="28" class="mono">:1514</text>
+      <text x="568" y="28">alert</text>
+    </g>
+  </svg>
+  <div class="row" style="gap:20px">
+    <div class="card f1" style="padding:16px 22px"><p class="small" style="margin:0"><b>SSH log line</b> → rule <code>5710</code> → alert → Threat Hunting</p></div>
+    <div class="card f1" style="padding:16px 22px"><p class="small" style="margin:0"><b>File change</b> → rule <code>550</code> → alert → FIM events</p></div>
+  </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Agent daemons collect: logcollector reads logs, syscheckd watches files. Events go to remoted on 1514.</li>
+    <li>analysisd decodes and matches rules; a match above the threshold becomes an alert.</li>
+    <li>Filebeat inside the manager container ships alerts to the indexer; the dashboard queries the indexer.</li>
+    <li>Kept at the level checked in docs/architecture.md: daemons verified running, Filebeat output host verified.</li>
+  </ul></aside>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-section="Phase 1">
+  <h2>What broke, and what it taught me</h2>
+  <div class="grow row" style="gap:30px">
+    <div class="f3" style="min-width:0">
+      <table class="dense">
+        <thead><tr><th>Break</th><th>What I learned</th></tr></thead>
+        <tbody>
+          <tr><td>Certificates on macOS</td><td>The generator's <code>cp</code> to <code>root-ca-manager.pem</code> is denied on Docker Desktop for Mac, and the script carries on silently. Not in the docs.</td></tr>
+          <tr><td>Reserved <code>admin</code> password</td><td>The dashboard cannot change it: new hash in <code>internal_users.yml</code>, then a <code>securityadmin.sh</code> reload</td></tr>
+          <tr><td><code>nano</code> would not start</td><td>Ubuntu does not know Ghostty's <code>TERM=xterm-ghostty</code></td></tr>
+        </tbody>
+      </table>
+      <p class="caption" style="margin-top:14px">In Phase 1 I used AI only to get past these three problems.</p>
+    </div>
+    <div class="f2 col" style="gap:14px; min-width:0">
+      <figure style="flex:1"><div class="shot" style="flex:1"><img src="../../screenshots/01-certs-generator-permission-denied.png" alt="Certificate generator output with permission denied"></div>
+        <figcaption class="caption">Generator: <code>find</code> missing, <code>cp</code> permission denied</figcaption></figure>
+      <figure style="flex:1"><div class="shot" style="flex:1"><img src="../../screenshots/02-compose-mount-error-and-fix.png" alt="docker compose mount error and the manual fix"></div>
+        <figcaption class="caption">Compose cannot mount the file; manual copy fixes it</figcaption></figure>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>The generator makes its output folder read-only, then copies root-ca.pem; on Linux root ignores that, on Docker Desktop for Mac it fails.</li>
+    <li>The certificates are generated; only the root-ca-manager copies are missing. The error only shows when compose cannot mount the file. Fix: make the folder writable, copy, make it read-only again.</li>
+    <li><code>find: command not found</code> in the same output is a separate, harmless gap in the generator image.</li>
+    <li>The Ubuntu 26.04 SCA gap is not here: it was found in Phase 2 (slide 15).</li>
+  </ul></aside>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-section="Phase 1">
+  <h2>Changing a reserved password</h2>
+  <div class="grow row" style="gap:26px">
+    <figure class="f1"><div class="shot grow"><img src="../../screenshots/05-admin-password-compose-env.png" alt="docker-compose.yml with the indexer password in the environment, redacted"></div>
+      <figcaption class="caption">New password set in the compose environment (redacted)</figcaption></figure>
+    <figure class="f1"><div class="shot grow"><img src="../../screenshots/06-admin-password-securityadmin-reload.png" alt="securityadmin.sh run inside the indexer container"></div>
+      <figcaption class="caption"><code>securityadmin.sh</code> reloads the security config: “Done with success”</figcaption></figure>
+  </div>
+  <p class="small muted" style="margin:16px 0 0">The dashboard cannot change <code>admin</code>. The indexer reads <code>internal_users.yml</code> only on first start.</p>
+  <aside class="notes"><ul>
+    <li>admin is a reserved user, so the dashboard refuses to change it.</li>
+    <li>Steps: new hash in internal_users.yml, update the compose environment, then securityadmin.sh inside the indexer.</li>
+    <li>The first two letters are left visible on purpose, to show it is no longer the default password.</li>
+  </ul></aside>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-section="Phase 1">
+  <h2>The agent is live</h2>
+  <div class="grow row" style="gap:26px">
+    <figure class="f1"><div class="shot grow"><img src="../../screenshots/07-agent-installed-running.png" alt="apt-get install of wazuh-agent 4.14.9 and systemctl status active"></div>
+      <figcaption class="caption">Installed with <code>WAZUH_MANAGER=host.orb.internal</code>; service active</figcaption></figure>
+    <figure class="f1"><div class="shot grow"><img src="../../screenshots/08-agent-active-dashboard.png" alt="Dashboard Endpoints with agent 001 ubuntu-lab active"></div>
+      <figcaption class="caption">Dashboard: 001 ubuntu-lab, Ubuntu 26.04.1 LTS, v4.14.9, active</figcaption></figure>
+  </div>
+  <aside class="notes"><ul>
+    <li>Followed the agent DEB docs: GPG key, repo, install with WAZUH_MANAGER, systemctl enable.</li>
+    <li>Lab-specific bits only: pinned version, agent name, host.orb.internal as the manager address.</li>
+    <li>This agent is what the Phase 2 service reads.</li>
+  </ul></aside>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-section="Phase 1">
+  <h2>Detection 1: SSH brute force</h2>
+  <div class="grow row" style="gap:30px">
+    <figure class="f3"><div class="shot grow"><img src="../../screenshots/09-ssh-bruteforce-alerts.png" alt="Threat Hunting showing many rule 5710 alerts and one 5712"></div>
+      <figcaption class="caption">Threat Hunting on ubuntu-lab: repeated failed logins for non-existent users</figcaption></figure>
+    <div class="f1 col" style="justify-content:center; gap:22px">
+      <div class="tile"><div class="num" style="font-size:52px">5710</div><div class="lbl">level 5</div><div class="sub">each attempt with a non-existent user</div></div>
+      <div class="tile" style="border-color:#2563c9"><div class="num" style="font-size:52px">5712</div><div class="lbl">level 10</div><div class="sub">one correlation alert: brute force</div></div>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Many single events at level 5, and the rule engine correlates them into one level 10 alert.</li>
+    <li>That is the frequency/correlation part of the ruleset doing its job with no config from me.</li>
+    <li>Agent name ubuntu-lab, agent 001.</li>
+  </ul></aside>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-section="Phase 1">
+  <h2>Detection 2: real-time file integrity</h2>
+  <figure><div class="shot" style="height:96px"><img src="../../screenshots/10-fim-realtime-config-and-changes.png" alt="Agent log confirming real-time monitoring and the test commands"></div>
+    <figcaption class="caption">Real-time FIM on <code>/home/dani/fim-lab</code>, then create, append, chmod, delete</figcaption></figure>
+  <div class="grow row" style="gap:26px; margin-top:18px">
+    <figure class="f3"><div class="shot grow"><img src="../../screenshots/11-fim-events.png" alt="FIM events: added, modified, modified, deleted"></div>
+      <figcaption class="caption">FIM events for <code>test.txt</code> on agent 001</figcaption></figure>
+    <div class="f1 col" style="justify-content:center">
+      <table class="dense">
+        <thead><tr><th>Event</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>added</td><td class="mono">554</td></tr>
+          <tr><td>modified</td><td class="mono">550</td></tr>
+          <tr><td>deleted</td><td class="mono">553</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Added realtime on a test directory in ossec.conf, restarted the agent, the log confirms real-time monitoring started.</li>
+    <li>Four changes produced four events: added (554, level 5), two modified (550, level 7), deleted (553, level 7).</li>
+    <li>Contrast with Phase 2: there the API shows FIM state, mostly a baseline, not these events.</li>
+  </ul></aside>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-section="Phase 2">
+  <div class="kicker">Phase 2 · Agent Hardening Brief</div>
+  <div class="grow col" style="justify-content:center">
+    <p style="font-size:46px; line-height:1.2; font-weight:700; letter-spacing:-.015em; margin:0 0 40px">“I have hundreds of failed CIS checks.<br><span class="accent">What do I fix first?</span>”</p>
+    <div class="row" style="gap:22px">
+      <div class="card f1"><h3>Long lists</h3><p class="small muted" style="margin:0">Deciding what comes first is the hard part</p></div>
+      <div class="card f1"><h3>Read-only</h3><p class="small muted" style="margin:0">Current state from the server API</p></div>
+      <div class="card f1"><h3>Honest</h3><p class="small muted" style="margin:0">Says what it could not check</p></div>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>A real question for whoever runs Wazuh: SCA gives a long list, not an order.</li>
+    <li>Output: top five fixes, why, remediation, evidence, and a coverage note.</li>
+    <li>Small on purpose: one endpoint, one page, server API only (ADR 0001).</li>
+  </ul></aside>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-section="Phase 2">
+  <h2>Architecture</h2>
+  <div class="grow" style="display:flex;align-items:center">
+  <svg viewBox="0 0 1136 480" width="1136" height="480" role="img" aria-label="Browser to FastAPI service to Wazuh API, with a provider choice of Claude API, Claude Code dev only, or rule-based mock">
+    <defs>
+      <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5a6676"/></marker>
+      <marker id="ah3b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563c9"/></marker>
+      <marker id="ah3w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9a5b00"/></marker>
+    </defs>
+    <!-- clients -->
+    <rect x="0" y="60" width="170" height="74" rx="10" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="85" y="94" text-anchor="middle" font-size="20" font-weight="700" fill="#17202b">Browser</text>
+    <text x="85" y="118" text-anchor="middle" font-size="15" fill="#5a6676">GET /</text>
+    <rect x="0" y="160" width="170" height="74" rx="10" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="85" y="194" text-anchor="middle" font-size="20" font-weight="700" fill="#17202b">curl, scripts</text>
+    <text x="85" y="218" text-anchor="middle" font-size="15" fill="#5a6676">JSON API</text>
+    <!-- service -->
+    <rect x="215" y="10" width="560" height="460" rx="16" fill="#f4f6f9" stroke="#d8dee7" stroke-width="2"/>
+    <text x="237" y="42" font-size="19" font-weight="700" fill="#17202b">wazuh-brief · FastAPI, one process</text>
+    <rect x="240" y="70" width="230" height="84" rx="10" fill="#fff" stroke="#2563c9" stroke-width="2"/>
+    <text x="258" y="104" font-size="19" font-weight="700" class="mono" fill="#17202b">main.py</text>
+    <text x="258" y="132" font-size="15" fill="#5a6676">routes, error mapping</text>
+    <rect x="240" y="190" width="230" height="74" rx="10" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="258" y="222" font-size="18" font-weight="700" fill="#17202b">in-memory cache</text>
+    <text x="258" y="248" font-size="15" fill="#5a6676">last brief per agent</text>
+    <rect x="520" y="70" width="230" height="84" rx="10" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="538" y="104" font-size="19" font-weight="700" class="mono" fill="#17202b">posture.py</text>
+    <text x="538" y="132" font-size="15" fill="#5a6676">collect, gaps by rule</text>
+    <rect x="520" y="190" width="230" height="84" rx="10" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="538" y="224" font-size="18" font-weight="700" class="mono" fill="#17202b">wazuh_client.py</text>
+    <text x="538" y="252" font-size="15" fill="#5a6676">JWT cache, retries</text>
+    <rect x="240" y="330" width="510" height="110" rx="10" fill="#e6eefb" stroke="#b8cdf0" stroke-width="1.5"/>
+    <text x="258" y="366" font-size="19" font-weight="700" class="mono" fill="#17202b">select_summarizer</text>
+    <text x="258" y="394" font-size="16" fill="#1a4a99" class="mono">LLM_PROVIDER: auto, anthropic,</text>
+    <text x="258" y="420" font-size="16" fill="#1a4a99" class="mono">claude-code (opt-in), mock</text>
+    <!-- internal edges -->
+    <g stroke="#5a6676" stroke-width="2" fill="none">
+      <line x1="170" y1="97" x2="234" y2="105" marker-end="url(#ah3)"/>
+      <line x1="170" y1="197" x2="234" y2="130" marker-end="url(#ah3)"/>
+      <line x1="355" y1="154" x2="355" y2="184" marker-end="url(#ah3)"/>
+      <line x1="470" y1="112" x2="514" y2="112" marker-end="url(#ah3)"/>
+      <line x1="635" y1="154" x2="635" y2="184" marker-end="url(#ah3)"/>
+      <line x1="430" y1="154" x2="430" y2="324" marker-end="url(#ah3)"/>
+    </g>
+    <!-- Wazuh API -->
+    <rect x="850" y="50" width="285" height="120" rx="12" fill="#fff" stroke="#2563c9" stroke-width="2"/>
+    <text x="870" y="86" font-size="20" font-weight="700" fill="#17202b">Wazuh server API</text>
+    <text x="870" y="114" font-size="17" class="mono" fill="#2563c9">:55000</text>
+    <text x="870" y="146" font-size="15" fill="#5a6676">GET only, plus login</text>
+    <path d="M750,232 C800,232 800,110 844,110" stroke="#2563c9" stroke-width="2.5" fill="none" marker-end="url(#ah3b)"/>
+    <!-- providers -->
+    <rect x="850" y="210" width="230" height="62" rx="10" fill="#fff" stroke="#b8c3d1" stroke-width="1.5"/>
+    <text x="868" y="238" font-size="18" font-weight="700" fill="#17202b">Claude API</text>
+    <text x="868" y="260" font-size="14" fill="#5a6676">production, API key</text>
+    <rect x="850" y="296" width="230" height="62" rx="10" fill="#fff" stroke="#b8c3d1" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="868" y="324" font-size="18" font-weight="700" fill="#17202b">Claude Code</text>
+    <text x="868" y="346" font-size="14" fill="#9a5b00">dev only, own login</text>
+    <rect x="850" y="384" width="230" height="62" rx="10" fill="#fff" stroke="#1e7a4f" stroke-width="2"/>
+    <text x="868" y="412" font-size="18" font-weight="700" fill="#17202b">Rule-based mock</text>
+    <text x="868" y="434" font-size="14" fill="#5a6676">no network, deterministic</text>
+    <g stroke="#5a6676" stroke-width="2" fill="none">
+      <path d="M750,360 C800,360 800,241 844,241" marker-end="url(#ah3)"/>
+      <line x1="750" y1="385" x2="844" y2="327" marker-end="url(#ah3)"/>
+      <path d="M750,412 C790,412 800,415 844,415" marker-end="url(#ah3)"/>
+    </g>
+    <!-- fallback edges -->
+    <g stroke="#9a5b00" stroke-width="2" fill="none" stroke-dasharray="6 5">
+      <path d="M1080,241 C1130,241 1130,400 1086,405" marker-end="url(#ah3w)"/>
+      <path d="M1080,327 C1112,327 1112,410 1086,420" marker-end="url(#ah3w)"/>
+    </g>
+    <text x="1135" y="478" text-anchor="end" font-size="14" fill="#9a5b00">dashed: any failure → mock</text>
+  </svg>
+  </div>
+  <aside class="notes"><ul>
+    <li>One FastAPI process. posture.py collects and computes coverage gaps by rule; wazuh_client.py is read-only with JWT cache, retries and typed errors.</li>
+    <li>LLM_PROVIDER picks the summarizer. auto: Claude API if a key is set, else mock. claude-code is opt-in only.</li>
+    <li>Any model failure falls back to the mock on the same input; the response says which one ran.</li>
+  </ul></aside>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-section="Phase 2">
+  <h2>What one brief contains</h2>
+  <div class="grow row" style="gap:30px">
+    <div class="f2 col" style="gap:12px; min-width:0">
+      <table class="dense">
+        <tbody>
+          <tr><td class="mono">summary</td><td>the situation, two sentences</td></tr>
+          <tr><td class="mono">fixes</td><td>top 5: why, fix, evidence</td></tr>
+          <tr><td class="mono">coverage</td><td>confidence, counts, gaps</td></tr>
+          <tr><td class="mono">source</td><td>claude · claude-code · mock</td></tr>
+          <tr><td class="mono">fallback_reason</td><td>why the mock ran</td></tr>
+          <tr><td class="mono">stale</td><td>cached copy, Wazuh down</td></tr>
+        </tbody>
+      </table>
+      <p class="caption">Coverage gaps are computed by rule, never by the model.</p>
+    </div>
+    <div class="f3 col" style="min-width:0">
+<pre class="code"><span class="c">// docs/examples/brief-000-claude-code.json (trimmed)</span>
+{
+  <span class="k">"agent"</span>: { <span class="k">"id"</span>: <span class="s">"000"</span>, <span class="k">"os"</span>: <span class="s">"Amazon Linux 2023"</span> },
+  <span class="k">"source"</span>: <span class="s">"claude-code"</span>,
+  <span class="k">"model"</span>: <span class="s">"claude-sonnet-5-5"</span>,
+  <span class="k">"fallback_reason"</span>: <span class="n">null</span>,
+  <span class="k">"fixes"</span>: [{
+    <span class="k">"rank"</span>: <span class="n">1</span>, <span class="k">"category"</span>: <span class="s">"exposure"</span>,
+    <span class="k">"title"</span>: <span class="s">"Install and enforce a default-deny host</span>
+<span class="s">      firewall in front of ports 1514, 1515 and 55000"</span>,
+    <span class="k">"evidence"</span>: [<span class="s">"check 31079 (CIS 3.4.1.1) nftables</span>
+<span class="s">      not installed"</span>, <span class="s">"listening: tcp 0.0.0.0:1515"</span>, …]
+  }, …],
+  <span class="k">"coverage"</span>: { <span class="k">"confidence"</span>: <span class="s">"high"</span>,
+    <span class="k">"sca_failed_checks_total"</span>: <span class="n">46</span>, … }
+}</pre>
+      <p class="caption">Real response from the lab, agent 000 (the manager)</p>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Same response shape whichever summarizer wrote it; source, model and fallback_reason make that visible.</li>
+    <li>Evidence ties every fix back to a check ID, a file or a port.</li>
+    <li>Agent 000 is the manager: the only agent in the lab with real SCA results, 46 failed checks.</li>
+  </ul></aside>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-section="Phase 2">
+  <h2>Model vs. rules, same data</h2>
+  <div class="grow col" style="justify-content:center">
+  <div class="row" style="gap:28px; align-items:flex-start">
+    <div class="f1 card" style="padding:20px 24px">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Rule-based mock</h3><span class="pill grey">one check per fix</span></div>
+      <table class="dense"><tbody>
+        <tr><td>1</td><td>Shadowed passwords in <code>/etc/passwd</code></td><td><span class="pill grey">sca</span></td></tr>
+        <tr><td>2</td><td>nftables default deny policy</td><td><span class="pill grey">sca</span></td></tr>
+        <tr><td>3</td><td>Permissions on <code>sshd_config</code></td><td><span class="pill grey">sca</span></td></tr>
+        <tr><td>4</td><td>nftables is installed</td><td><span class="pill grey">sca</span></td></tr>
+        <tr><td>5</td><td>auditd is installed</td><td><span class="pill grey">sca</span></td></tr>
+      </tbody></table>
+      <p class="small muted" style="margin:14px 0 0">Wazuh ports: not raised</p>
+    </div>
+    <div class="f1 card" style="padding:20px 24px; background:var(--accent-soft); border-color:#b8cdf0">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Claude (dev path)</h3><span class="pill">groups checks</span></div>
+      <table class="dense"><tbody>
+        <tr><td>1</td><td>Firewall in front of 1514, 1515, 55000</td><td><span class="pill">exposure</span></td></tr>
+        <tr><td>2</td><td>Password storage and aging policy</td><td><span class="pill">sca</span></td></tr>
+        <tr><td>3</td><td><code>/usr/bin/sh</code>, <code>sshd_config</code> perms</td><td><span class="pill warn">fim</span></td></tr>
+        <tr><td>4</td><td>auditd plus the CIS audit rules</td><td><span class="pill">sca</span></td></tr>
+        <tr><td>5</td><td>Scheduler, boot, package, banners</td><td><span class="pill">sca</span></td></tr>
+      </tbody></table>
+      <p class="small muted" style="margin:14px 0 0">Wazuh ports: ranked first</p>
+    </div>
+  </div>
+  </div>
+  <p class="caption" style="margin-top:12px">Agent 000, cis_amazon_linux_2023, 46 failed checks, score 52%. Titles shortened.</p>
+  <aside class="notes"><ul>
+    <li>Same BriefInput into both. The mock ranks by keyword weights; the model groups related checks into fewer, bigger fixes.</li>
+    <li>The model ranked exposure first: the Wazuh ports listen on all interfaces with no firewall. The mock only names SSH explicitly, so it ranks those ports low.</li>
+    <li>Fix 3 is a mistake I come back to on the "what review caught" slide.</li>
+  </ul></aside>
+</section>
+
+<!-- 15 -->
+<section class="slide" data-section="Phase 2">
+  <h2>Coverage honesty</h2>
+  <div class="grow row" style="gap:34px; align-items:center">
+    <div class="f1 col" style="gap:0">
+      <div class="flow" style="flex-direction:column; gap:0">
+        <div class="step"><b>Agent 001</b><span>Ubuntu 26.04.1 LTS</span></div>
+        <div class="arrow" style="height:26px;width:auto">↓</div>
+        <div class="step"><b>Configured: <code>cis_ubuntu22-04</code></b><span>OS requirement fails, policy skipped</span></div>
+        <div class="arrow" style="height:26px;width:auto">↓</div>
+        <div class="step"><b><code>GET /sca/001</code></b><span>0 policies</span></div>
+      </div>
+    </div>
+    <div class="f1 col" style="gap:18px">
+      <p style="font-size:40px; font-weight:700; line-height:1.15; margin:0">“Not checked”<br><span class="accent">is not “compliant”</span></p>
+      <ul class="clean">
+        <li>001 (26.04): confidence <span class="pill warn">low</span>, fix 1 is restore SCA</li>
+        <li>002 (24.04): <code>cis_ubuntu24-04</code>, 98 failed, confidence <span class="pill ok">high</span></li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Wazuh 4.14.9 ships no CIS policy for Ubuntu 26.04. The agent is configured with the 22.04 policy and skips it.</li>
+    <li>An empty list could look like a clean bill of health. The brief says the opposite, by rule, not by the model.</li>
+    <li>The wmodules call is what proves the cause: it shows which policy files the agent is configured with.</li>
+    <li>To prove it, I added agent 002 on Ubuntu 24.04, which has a bundled policy: same agent version, real CIS scan, 98 failed / 104 passed, high confidence. Example in docs/examples, recording in docs/demo.</li>
+  </ul></aside>
+</section>
+
+<!-- 16 -->
+<section class="slide" data-section="Phase 2">
+  <h2>Failure handling</h2>
+  <div class="grow">
+    <table>
+      <thead><tr><th>Failure</th><th>Behaviour</th></tr></thead>
+      <tbody>
+        <tr><td>Wazuh slow or flaky</td><td>Timeout, retries with backoff on errors, 429, 5xx</td></tr>
+        <tr><td>Wazuh down</td><td>Cached brief with <code>stale: true</code>, else <code>503</code></td></tr>
+        <tr><td>Wazuh auth fails</td><td><code>502 wazuh_auth_failed</code>, never hidden by cache</td></tr>
+        <tr><td>Model down or bad output</td><td>Mock writes it; <code>fallback_reason</code> says why</td></tr>
+        <tr><td>Is it us or Wazuh?</td><td><code>/healthz</code> process · <code>/readyz</code> Wazuh call</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">Every path has tests; none needs the lab or a key. Runbook: <code>docs/runbook.md</code>.</p>
+  <aside class="notes"><ul>
+    <li>A JWT is cached until shortly before expiry, and a 401 triggers one fresh login.</li>
+    <li>Auth failures are deliberately not masked by the stale cache: a credentials problem must be visible.</li>
+    <li>Future: circuit breaker, queue and workers, shared cache so a restart keeps stale copies.</li>
+  </ul></aside>
+</section>
+
+<!-- 17 -->
+<section class="slide" data-section="Phase 2">
+  <h2>How I worked with AI</h2>
+  <div class="grow col" style="justify-content:center; gap:22px">
+    <div class="flow big">
+      <div class="step"><b>Plan mode</b><span><code>docs/plan.md</code></span></div><div class="arrow">→</div>
+      <div class="step"><b>Agent setup</b><span><code>CLAUDE.md</code>, 2 subagents</span></div><div class="arrow">→</div>
+      <div class="step hl"><b>Subagent</b><span>background, isolated worktree</span></div><div class="arrow">→</div>
+      <div class="step"><b>Commits</b><span>small, signed</span></div><div class="arrow">→</div>
+      <div class="step"><b>PR</b><span>I review</span></div><div class="arrow">→</div>
+      <div class="step"><b>CI</b><span>ruff, pytest</span></div>
+    </div>
+    <div class="row" style="gap:14px; align-items:center">
+      <div style="flex:0 0 auto" class="small muted">In parallel:</div>
+      <div class="card" style="padding:12px 20px; flex:1"><p class="small" style="margin:0">Main session free for my questions · <b>Phase 1 by hand</b></p></div>
+    </div>
+  </div>
+  <div class="card" style="border-left:5px solid var(--warn); background:var(--warn-soft); border-color:#ecd3a6">
+    <div class="kicker" style="color:var(--warn)">Lesson</div>
+    <p style="margin:0">First launch: the worktree landed in the upstream <code>wazuh-docker</code> clone. The subagent stopped, wrote nothing.<br><b>Now I always check which repo a worktree belongs to.</b></p>
+  </div>
+  <aside class="notes"><ul>
+    <li>Agent setup was the first Phase 2 commit, before any code, so every agent starts from the same rules.</li>
+    <li>Every prompt the subagent received is in docs/agent-log.md, verbatim.</li>
+    <li>Incident: isolation follows the session's current directory, which was inside lab/wazuh-docker. Fixed by creating the worktree explicitly and relaunching with a branch check.</li>
+  </ul></aside>
+</section>
+
+<!-- 18 -->
+<section class="slide" data-section="Phase 2">
+  <h2>What review caught</h2>
+  <div class="grow row" style="gap:28px; align-items:stretch">
+    <div class="card f1">
+      <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0"><code>/usr/bin/sh</code> world-writable?</h3><span class="pill ok">fixed</span></div>
+      <p style="margin-top:16px">A symlink. Wazuh reports links as <code>rwxrwxrwx</code>.</p>
+      <p class="small muted" style="margin:0">Fix in <code>04463ee</code>: mark likely symlinks in the input. Confirmed live on agent 002.</p>
+    </div>
+    <div class="card f1">
+      <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Baseline read as changes</h3><span class="pill warn">open</span></div>
+      <p style="margin-top:16px">On 001 the model treated first-scan FIM dates as recent changes.</p>
+      <p class="small muted" style="margin:0">One later run on 002 got it right. One good run is not a fix.</p>
+    </div>
+  </div>
+  <p class="small" style="margin:18px 0 0">Both came from <b>reading real output</b>, not from tests. <span class="muted">Future: each becomes an eval case.</span></p>
+  <aside class="notes"><ul>
+    <li>The model hedged on /usr/bin/sh ("may just be a symlink") but still ranked it. Fixed the input, not the output. On 002 every FIM entry is a symlink under /etc/alternatives, and the brief now treats them as links.</li>
+    <li>The open one: "verify the account-file changes from 11:40 UTC" while FIM was a baseline. Not fixed yet, and I say so.</li>
+    <li>That is why I want an eval set: real BriefInput plus a checkable property.</li>
+  </ul></aside>
+</section>
+
+<!-- 19 -->
+<section class="slide" data-section="Phase 2">
+  <h2>Dev-only Agent SDK path</h2>
+  <p class="small muted" style="margin:-12px 0 18px">No API budget. Real model output on my own Claude Code login: no tools, one turn, never ships (ADR 0002).</p>
+  <div class="grow col" style="justify-content:center">
+    <table>
+      <thead><tr><th>Prowler Studio</th><th>Here</th></tr></thead>
+      <tbody>
+        <tr><td>Agent SDK on each engineer's login</td><td><code>claude-code</code> provider, dev only</td></tr>
+        <tr><td>One agent per job, own tool list</td><td>Summarizer: no tools, one turn</td></tr>
+        <tr><td>Typed pydantic results</td><td>Output validated against <code>Draft</code>, else mock</td></tr>
+        <tr><td>Isolated worktree per run</td><td>Phase 2 built in its own worktree</td></tr>
+        <tr><td>Prompts as Jinja2 templates</td><td>Not yet: prompt lives in code</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">I co-authored Prowler Studio's rewrite to the Claude Agent SDK (#83).</p>
+  <aside class="notes"><ul>
+    <li>The SDK docs say a claude.ai login cannot power a third-party product, so this path is developer tooling only. Production uses an API key.</li>
+    <li>Same prompt, same payload, same schema as the API path; responses say source claude-code.</li>
+    <li>Prowler Studio is public: a ticket becomes a PR with a check, tests and compliance mappings. Same split between dev tooling and product.</li>
+  </ul></aside>
+</section>
+
+<!-- 20 -->
+<section class="slide" data-section="Phase 2">
+  <h2>By the numbers</h2>
+  <div class="grow" style="display:flex;align-items:center">
+    <div class="tiles" style="width:100%">
+      <div class="tile"><div class="num">83</div><div class="lbl">tests passing</div><div class="sub">none needs the lab, a key or a login</div></div>
+      <div class="tile"><div class="num">32</div><div class="lbl">commits</div><div class="sub">on <code>phase2/hardening-brief</code>, signed</div></div>
+      <div class="tile"><div class="num">2</div><div class="lbl">ADRs</div><div class="sub">stack and shape · dev-only SDK path</div></div>
+      <div class="tile"><div class="num" style="color:var(--ok)">Green</div><div class="lbl">CI on PR #1</div><div class="sub">ruff and pytest on every push</div></div>
+      <div class="tile"><div class="num">2</div><div class="lbl">subagents</div><div class="sub">reviewer · docs-keeper</div></div>
+      <div class="tile"><div class="num">4</div><div class="lbl">real example briefs</div><div class="sub">claude-code vs. mock, agents 000 and 002</div></div>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>83 tests from uv run pytest on 2026-10-29; HTTP mocked with respx, model clients replaced with fakes.</li>
+    <li>32 commits on the Phase 2 branch, one logical change each, docs in the same commit as code.</li>
+    <li>CI runs ruff and pytest on every push and PR to PR #1. Check the latest run before presenting.</li>
+  </ul></aside>
+</section>
+
+<!-- 21 -->
+<section class="slide" data-section="What's next">
+  <h2>From slice to SaaS</h2>
+  <div class="flow" style="margin:-6px 0 24px">
+    <div class="step"><b>Gateway</b><span>tenant ID, rate limit</span></div><div class="arrow">→</div>
+    <div class="step"><b>Brief API</b><span>stateless, cache-first</span></div><div class="arrow">→</div>
+    <div class="step"><b>Queue</b><span>202 + job ID</span></div><div class="arrow">→</div>
+    <div class="step hl"><b>Workers</b><span>Wazuh per tenant, Claude, rules fallback</span></div><div class="arrow">→</div>
+    <div class="step"><b>Redis, Postgres</b><span>briefs, feedback, prompt versions</span></div>
+  </div>
+  <div class="grow">
+    <table class="dense">
+      <thead><tr><th>Area</th><th>Today</th><th>Target <span class="pill grey" style="font-size:12px">drawn, not built</span></th></tr></thead>
+      <tbody>
+        <tr><td>Tenancy</td><td>One Wazuh, <code>.env</code></td><td>Tenant ID everywhere, secret manager</td></tr>
+        <tr><td>Request path</td><td>Synchronous</td><td>Queue, workers, cache-first, 202</td></tr>
+        <tr><td>Observability</td><td>Python logging</td><td>OpenTelemetry, SLOs, paging</td></tr>
+        <tr><td>Status</td><td><code>/healthz</code>, <code>/readyz</code></td><td>Plus uptime checks, status page</td></tr>
+        <tr><td>Prompt</td><td>One prompt in code</td><td>Versioned, flags, evals from feedback</td></tr>
+        <tr><td>Dashboard</td><td>Standalone page</td><td>Side panel in the Wazuh dashboard, then chat using our endpoints as tools</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">Same core: read-only client, rule-computed gaps, small payload, deterministic fallback. <code>docs/saas-target.md</code></p>
+  <aside class="notes"><ul>
+    <li>Multi-tenancy from day one: tenant ID set by the gateway, on every cache key, row, trace and log line.</li>
+    <li>The model call leaves the request path; today's stale-cache behaviour becomes the normal read path.</li>
+    <li>Feedback loop: thumbs up/down, weekly triage, eval set, feature-flagged prompt rollout.</li>
+    <li>Next feature, drawn not built: an assistant in a Wazuh dashboard side panel. The chat backend calls /agents and /agents/{id}/brief as tools instead of querying Wazuh freely, reuses the dashboard session, keeps the rules fallback and guardrails, streams answers, and feeds thumbs up/down into the eval set. Not built because the plugin needs the exact OpenSearch Dashboards toolchain of 4.14.9, and a chat is a different product. Rollout: link, then brief panel, then chat.</li>
+  </ul></aside>
+</section>
+
+<!-- 22 -->
+<section class="slide" data-section="What's next">
+  <h2>With one more day</h2>
+  <div class="row" style="gap:22px">
+    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">1</div><h3>Agents on other machines</h3><p class="small muted" style="margin:0">Connect them to my local Wazuh, try more attack types</p></div>
+    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">2</div><h3>Fix the open FIM case</h3><p class="small muted" style="margin:0">Baseline dates must not read as changes</p></div>
+    <div class="card f1"><div class="num accent" style="font-size:40px;font-weight:700">3</div><h3>Versioned prompt + feedback</h3><p class="small muted" style="margin:0">Template, thumbs up/down, first eval cases</p></div>
+  </div>
+  <div class="grow" style="display:flex;align-items:center;justify-content:center">
+    <p style="font-size:64px;font-weight:700;letter-spacing:-.02em;margin:0">Questions?</p>
+  </div>
+  <aside class="notes"><ul>
+    <li>Lab: my PHASE1.md answer. Agents on other computers reaching my local manager on 1514/1515, to see how events from real machines are processed and to test more attack types.</li>
+    <li>Service: the FIM baseline issue is still open in PHASE2.md. The two review catches would become the first eval cases for a versioned prompt.</li>
+    <li>Next after that: a CI docs check. Today the docs rule is enforced by CLAUDE.md and the docs-keeper agent, not by CI.</li>
+  </ul></aside>
+</section>
+
+</main>
+</div>
+<div class="notes-panel" id="notesPanel" aria-live="polite"></div>
+<div class="hint" id="hint">← → navigate · N notes · F fullscreen</div>
+
+<script>
+(function () {
+  var deck = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var total = slides.length;
+  var progress = document.getElementById('progress');
+  var panel = document.getElementById('notesPanel');
+  var current = 0;
+
+  slides.forEach(function (s, i) {
+    var sec = document.createElement('div');
+    sec.className = 'chrome-section';
+    sec.textContent = s.getAttribute('data-section') || '';
+    var cnt = document.createElement('div');
+    cnt.className = 'chrome-count';
+    cnt.textContent = (i + 1) + ' / ' + total;
+    s.appendChild(sec);
+    s.appendChild(cnt);
+    if (i > 0) {
+      var nm = document.createElement('div');
+      nm.className = 'chrome-name';
+      nm.textContent = 'Dani Barranquero · Wazuh Hub technical task';
+      s.appendChild(nm);
+    }
+  });
+
+  function fit() {
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.setProperty('--scale', s);
+  }
+
+  function renderNotes() {
+    var n = slides[current].querySelector('.notes');
+    panel.innerHTML = '<div class="np-head">Notes · slide ' + (current + 1) + '</div>' + (n ? n.innerHTML : '');
+  }
+
+  function go(i, fromHash) {
+    i = Math.max(0, Math.min(total - 1, i));
+    slides[current].classList.remove('active');
+    current = i;
+    slides[current].classList.add('active');
+    progress.style.width = ((current + 1) / total * 100) + '%';
+    renderNotes();
+    var h = '#' + (current + 1);
+    if (!fromHash && location.hash !== h) {
+      history.replaceState(null, '', h);
+    }
+  }
+
+  function fromHash() {
+    var n = parseInt((location.hash || '').replace('#', ''), 10);
+    return isNaN(n) ? 0 : n - 1;
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': case 'Spacebar':
+        e.preventDefault(); go(current + 1); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+        e.preventDefault(); go(current - 1); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End': e.preventDefault(); go(total - 1); break;
+      case 'n': case 'N': panel.classList.toggle('open'); break;
+      case 'f': case 'F':
+        if (!document.fullscreenElement) {
+          if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        } else if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+        break;
+    }
+  });
+
+  window.addEventListener('hashchange', function () { go(fromHash(), true); });
+  window.addEventListener('resize', fit);
+  setTimeout(function () { var h = document.getElementById('hint'); if (h) h.style.display = 'none'; }, 6000);
+
+  fit();
+  current = 0;
+  slides[0].classList.add('active');
+  go(fromHash());
+})();
+</script>
+</body>
+</html>
