@@ -412,6 +412,22 @@
 
 <!-- 8 -->
 <section class="slide" data-section="Phase 1">
+  <h2>The agent is live</h2>
+  <div class="grow row" style="gap:26px">
+    <figure class="f1"><div class="shot grow"><img src="../../screenshots/07-agent-installed-running.png" alt="apt-get install of wazuh-agent 4.14.9 and systemctl status active"></div>
+      <figcaption class="caption">Installed with <code>WAZUH_MANAGER=host.orb.internal</code>; service active</figcaption></figure>
+    <figure class="f1"><div class="shot grow"><img src="../../screenshots/08-agent-active-dashboard.png" alt="Dashboard Endpoints with agent 001 ubuntu-lab active"></div>
+      <figcaption class="caption">Dashboard: 001 ubuntu-lab, Ubuntu 26.04.1 LTS, v4.14.9, active</figcaption></figure>
+  </div>
+  <aside class="notes"><ul>
+    <li>Followed the agent DEB docs: GPG key, repo, install with WAZUH_MANAGER, systemctl enable.</li>
+    <li>Lab-specific bits only: pinned version, agent name, host.orb.internal as the manager address.</li>
+    <li>This agent is what the Phase 2 service reads.</li>
+  </ul></aside>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-section="Phase 1">
   <h2>Detection 1: SSH brute force</h2>
   <div class="grow row" style="gap:30px">
     <figure class="f3"><div class="shot grow"><img src="../../screenshots/09-ssh-bruteforce-alerts.png" alt="Threat Hunting showing many rule 5710 alerts and one 5712"></div>
@@ -428,7 +444,7 @@
   </ul></aside>
 </section>
 
-<!-- 9 -->
+<!-- 10 -->
 <section class="slide" data-section="Phase 1">
   <h2>Detection 2: real-time file integrity</h2>
   <figure><div class="shot" style="height:96px"><img src="../../screenshots/10-fim-realtime-config-and-changes.png" alt="Agent log confirming real-time monitoring and the test commands"></div>
@@ -451,22 +467,6 @@
     <li>Added realtime on a test directory in ossec.conf, restarted the agent, the log confirms real-time monitoring started.</li>
     <li>Four changes produced four events: added (554, level 5), two modified (550, level 7), deleted (553, level 7).</li>
     <li>Contrast with Phase 2: there the API shows FIM state, mostly a baseline, not these events.</li>
-  </ul></aside>
-</section>
-
-<!-- 10 -->
-<section class="slide" data-section="Phase 1">
-  <h2>The agent is live</h2>
-  <div class="grow row" style="gap:26px">
-    <figure class="f1"><div class="shot grow"><img src="../../screenshots/07-agent-installed-running.png" alt="apt-get install of wazuh-agent 4.14.9 and systemctl status active"></div>
-      <figcaption class="caption">Installed with <code>WAZUH_MANAGER=host.orb.internal</code>; service active</figcaption></figure>
-    <figure class="f1"><div class="shot grow"><img src="../../screenshots/08-agent-active-dashboard.png" alt="Dashboard Endpoints with agent 001 ubuntu-lab active"></div>
-      <figcaption class="caption">Dashboard: 001 ubuntu-lab, Ubuntu 26.04.1 LTS, v4.14.9, active</figcaption></figure>
-  </div>
-  <aside class="notes"><ul>
-    <li>Followed the agent DEB docs: GPG key, repo, install with WAZUH_MANAGER, systemctl enable.</li>
-    <li>Lab-specific bits only: pinned version, agent name, host.orb.internal as the manager address.</li>
-    <li>This agent is what the Phase 2 service reads.</li>
   </ul></aside>
 </section>
 

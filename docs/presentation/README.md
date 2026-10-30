@@ -39,7 +39,7 @@ Print CSS gives one 1280×720 slide per page (22 pages), with the speaker notes,
 | # | Section | Slide |
 |---|---|---|
 | 1–2 | Intro | Title, the three phases |
-| 3–10 | Phase 1 | Lab diagram, why this setup, how an event travels, what broke, reserved password, SSH brute force, real-time FIM, the agent is live |
+| 3–10 | Phase 1 | Lab diagram, why this setup, how an event travels, what broke, reserved password, the agent is live, SSH brute force, real-time FIM |
 | 11–20 | Phase 2 | The question, architecture, one brief, model vs. rules, coverage honesty, failure handling, working with AI, what review caught, the dev-only Agent SDK path, numbers |
 | 21–22 | What's next | From slice to SaaS, with one more day, questions |
 
